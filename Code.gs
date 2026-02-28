@@ -1,5 +1,5 @@
 // =========================================================================
-// Code.gs [ฉบับอัปเกรด TMS - Single Input & Multi-Trainer Support]
+// Code.gs [ฉบับอัปเกรด TMS - Single Input, Multi-Trainer & Attendance]
 // =========================================================================
 
 function doGet(e) {
@@ -22,8 +22,11 @@ function getSS() {
 
 function getSheetData(sheetName) {
   var sheet = getSS().getSheetByName(sheetName);
+  if (!sheet) return [];
   var data = sheet.getDataRange().getValues();
   var result = [];
+  if (data.length <= 1) return result;
+  
   var headers = data[0];
   for (var i = 1; i < data.length; i++) {
     var obj = {};
@@ -61,8 +64,8 @@ function loginUser(personalId) {
           personal_id: u.personal_id,
           role: u.role,
           full_name: u.full_name,
-          position: u.Position || '', // 📌 ดึงคอลัมน์ Position
-          office: u.Office || '',     // 📌 ดึงคอลัมน์ Office
+          position: u.Position || '', 
+          office: u.Office || '',     
           user_type: u.user_type || '', 
           trainer_id: u.trainer_id || '' 
         };
@@ -302,7 +305,7 @@ function createNewTask(form) {
 
     var folderId = "";
     if (form.taskType !== 'LINK') {
-      var parentFolderId = "ใส่ Folder ID"; // ⚠️ เปลี่ยนเป็น ID ของ Folder หลักที่คุณต้องการให้ระบบสร้างงานไว้ข้างใน
+      var parentFolderId = "1HHQgpS3CXvZLbP0e1QS9ORG2al89GbSd"; // ⚠️ เปลี่ยนเป็น ID ของ Folder หลัก
       var parentFolder;
       try { parentFolder = DriveApp.getFolderById(parentFolderId); } 
       catch (e) { parentFolder = DriveApp.getRootFolder(); }
@@ -451,5 +454,94 @@ function deleteTask(taskId) {
     return { status: 'FAILED', message: 'ไม่พบรหัสภาระงานที่ต้องการลบ' };
   } catch (e) {
     return { status: 'FAILED', message: 'Error: ' + e.toString() };
+  }
+}
+
+// -------------------------------------------------------------------------
+// 5. Attendance Logic (ระบบลงเวลา Check-In / Check-Out)
+// -------------------------------------------------------------------------
+
+function getAttendanceStatus(traineeId) {
+  try {
+    var sheet = getSS().getSheetByName('Attendance');
+    if (!sheet) return { status: 'FAILED', message: 'ไม่พบแผ่นงาน Attendance' };
+    
+    var data = sheet.getDataRange().getValues();
+    var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    
+    // ค้นหาจากล่างขึ้นบน (ข้อมูลล่าสุดของวันนี้)
+    for (var i = data.length - 1; i >= 1; i--) {
+      var rowDate = data[i][2];
+      if (!rowDate) continue;
+      
+      var rowDateStr = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), "yyyy-MM-dd");
+      if (String(data[i][1]).trim() === String(traineeId).trim() && rowDateStr === todayStr) {
+        return {
+          status: 'SUCCESS',
+          checkedIn: data[i][3] ? true : false,
+          checkedOut: data[i][5] ? true : false,
+          checkInTime: data[i][3] ? Utilities.formatDate(new Date(data[i][3]), Session.getScriptTimeZone(), "HH:mm") : null,
+          checkOutTime: data[i][5] ? Utilities.formatDate(new Date(data[i][5]), Session.getScriptTimeZone(), "HH:mm") : null
+        };
+      }
+    }
+    return { status: 'SUCCESS', checkedIn: false, checkedOut: false };
+  } catch (e) {
+    return { status: 'FAILED', message: e.toString() };
+  }
+}
+
+function recordCheckIn(data) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var sheet = getSS().getSheetByName('Attendance');
+    if (!sheet) return { status: 'FAILED', message: 'ไม่พบแผ่นงาน Attendance' };
+    
+    var timestamp = new Date();
+    sheet.appendRow([
+      'ATT-' + Utilities.getUuid().slice(0,8),
+      data.traineeId,
+      timestamp, // date
+      timestamp, // check_in_time
+      data.goal, // learning_goal
+      '',        // check_out_time
+      ''         // reflection
+    ]);
+    return { status: 'SUCCESS', message: 'บันทึกเวลาเข้าอบรมเรียบร้อยแล้ว' };
+  } catch (e) {
+    return { status: 'FAILED', message: e.toString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function recordCheckOut(data) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var sheet = getSS().getSheetByName('Attendance');
+    if (!sheet) return { status: 'FAILED', message: 'ไม่พบแผ่นงาน Attendance' };
+    
+    var rows = sheet.getDataRange().getValues();
+    var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    
+    for (var i = rows.length - 1; i >= 1; i--) {
+      var rowDate = rows[i][2];
+      if (!rowDate) continue;
+      
+      var rowDateStr = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), "yyyy-MM-dd");
+      if (String(rows[i][1]).trim() === String(data.traineeId).trim() && rowDateStr === todayStr) {
+        // อัปเดตข้อมูล Check-Out ในแถวของวันนี้
+        sheet.getRange(i + 1, 6).setValue(new Date()); // check_out_time
+        sheet.getRange(i + 1, 7).setValue(data.reflection); // reflection
+        return { status: 'SUCCESS', message: 'บันทึกเวลาออกและผลการสะท้อนเรียบร้อยแล้ว' };
+      }
+    }
+    return { status: 'FAILED', message: 'ไม่พบประวัติการ Check-In ของวันนี้' };
+  } catch (e) {
+    return { status: 'FAILED', message: e.toString() };
+  } finally {
+    lock.releaseLock();
   }
 }
