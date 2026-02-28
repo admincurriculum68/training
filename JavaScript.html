@@ -1,0 +1,413 @@
+<script>
+  // ==========================================
+  // 1. GLOBAL VARIABLES
+  // ==========================================
+  var currentUser = {};
+  var allTraineeData = [];
+  var adminAllTasks = []; 
+  var currentAdminPage = 1;
+  var rowsPerPage = 10;
+  var currentSearchQuery = "";
+  var currentTypeFilter = "";
+  var currentViewContext = "";
+
+  // ==========================================
+  // 2. AUTHENTICATION & ROUTING
+  // ==========================================
+  function handleLogin(e) {
+    e.preventDefault();
+    var btn = document.getElementById('btn-login');
+    var errorBox = document.getElementById('login-error');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังตรวจสอบ...';
+    errorBox.classList.add('d-none');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.status === 'SUCCESS') {
+          currentUser = res;
+          showDashboard(res);
+        } else {
+          errorBox.innerText = res.message; errorBox.classList.remove('d-none');
+          btn.disabled = false; btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>เข้าสู่ระบบ';
+        }
+      })
+      .withFailureHandler(function (err) {
+        alert("System Error: " + err);
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>เข้าสู่ระบบ';
+      })
+      .loginUser(document.getElementById('personalId').value);
+  }
+
+  function logout() {
+    Swal.fire({
+      title: 'ต้องการออกจากระบบ?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#0d6efd',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'ใช่, ออกจากระบบ',
+      cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        currentUser = {};
+        document.getElementById('personalId').value = "";
+        document.getElementById('btn-login').disabled = false; document.getElementById('btn-login').innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>เข้าสู่ระบบ';
+        document.getElementById('dashboard-section').classList.add('d-none');
+        document.getElementById('login-section').classList.remove('d-none');
+      }
+    });
+  }
+
+function showDashboard(user) {
+    document.getElementById('login-section').classList.add('d-none');
+    document.getElementById('dashboard-section').classList.remove('d-none');
+    
+    // 📌 จัดรูปแบบการแสดงผลชื่อ ตำแหน่ง และสังกัด (แยกบรรทัด)
+    var posText = user.position ? user.position : '';
+    var offText = user.office ? user.office : '';
+    var subText = '';
+    
+    // ถ้านำทั้งสองค่ามารวมกันโดยใช้ <br> คั่นตรงกลาง
+    if (posText !== '' || offText !== '') {
+      var lines = [];
+      if (posText !== '') lines.push(posText);
+      if (offText !== '') lines.push(offText);
+      
+      subText = '<div style="font-size: 0.75rem; font-weight: normal; opacity: 0.85; margin-top: 2px; line-height: 1.3;">' + 
+                  lines.join('<br>') + 
+                '</div>';
+    }
+
+    // อัปเดต UI มุมขวาบน
+    document.getElementById('user-display-name').innerHTML = 
+      '<div class="d-inline-block text-end align-middle me-2">' +
+        '<div class="fw-bold" style="font-size: 0.95rem;"><i class="bi bi-person-circle me-1"></i> ' + user.full_name + ' <span class="badge bg-light text-primary ms-1" style="font-size: 0.7em;">' + user.role + '</span></div>' +
+        subText +
+      '</div>';
+
+    document.querySelectorAll('.role-view').forEach(function (el) { el.classList.add('d-none'); });
+
+    if (user.role === 'TRAINEE') {
+      document.getElementById('view-trainee').classList.remove('d-none');
+      document.getElementById('trainee-group-badge').innerText = user.user_type;
+      loadTraineeTasks(user.personal_id, user.user_type);
+    } else if (user.role === 'TRAINER') {
+      document.getElementById('view-trainer').classList.remove('d-none');
+      currentViewContext = 'TRAINER';
+      loadTrainerDashboard(user.personal_id);
+    } else if (user.role === 'ADMIN') {
+      document.getElementById('view-admin').classList.remove('d-none');
+      currentViewContext = 'ADMIN';
+      loadAdminDashboard();
+    }
+  }
+
+  // ==========================================
+  // 3. TRAINEE LOGIC (ผู้อบรม)
+  // ==========================================
+function loadTraineeTasks(traineeId, userType) {
+    var container = document.getElementById('trainee-task-list');
+    container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังโหลดข้อมูล...</p></div>';
+
+    google.script.run.withSuccessHandler(function (tasks) {
+      
+      // 📌 ส่วนที่เพิ่มใหม่: คำนวณความก้าวหน้าสำหรับ Dashboard
+      var totalTasks = tasks ? tasks.length : 0;
+      var submittedTasks = tasks ? tasks.filter(function(t) { return t.is_submitted; }).length : 0;
+      var progressPercent = totalTasks > 0 ? Math.round((submittedTasks / totalTasks) * 100) : 0;
+
+      // อัปเดตตัวเลขขึ้นหน้าจอ
+      document.getElementById('my-total-tasks').innerText = totalTasks;
+      document.getElementById('my-submitted-tasks').innerText = submittedTasks;
+      document.getElementById('my-progress-text').innerText = progressPercent + '%';
+      
+      var pBar = document.getElementById('my-progress-bar');
+      pBar.style.width = progressPercent + '%';
+      pBar.innerText = progressPercent + '%';
+      
+      // เปลี่ยนสี Progress bar ตามความก้าวหน้า (ครบ 100% เป็นสีเขียว)
+      pBar.className = 'progress-bar progress-bar-striped progress-bar-animated ' + 
+                       (progressPercent === 100 ? 'bg-success' : (progressPercent >= 50 ? 'bg-info' : 'bg-primary'));
+
+      // --- ส่วนของการสร้างตารางรายการงาน ---
+      if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<div class="alert alert-secondary text-center"><i class="bi bi-info-circle me-2"></i>ไม่มีภาระงานที่เปิดรับสำหรับกลุ่มของคุณในขณะนี้</div>';
+        return;
+      }
+
+      var html = '<div class="table-responsive shadow-sm border rounded"><table class="table table-hover align-middle bg-white mb-0"><thead class="bg-light"><tr class="text-muted small text-uppercase"><th>ชื่องาน</th><th style="width: 25%;">รายละเอียด</th><th>รูปแบบ</th><th>กำหนดส่ง</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody>';
+
+      tasks.forEach(function (t) {
+        var statusBadge = ''; var actionBtn = '';
+        var typeIcon = t.task_type === 'LINK' ? '<span class="badge bg-light text-dark border"><i class="bi bi-link-45deg me-1"></i>ลิงก์</span>' : '<span class="badge bg-light text-dark border"><i class="bi bi-file-earmark-text me-1"></i>ไฟล์</span>';
+        
+        if (!t.is_submitted) {
+          statusBadge = '<span class="badge rounded-pill bg-secondary"><i class="bi bi-circle me-1"></i>ยังไม่ส่ง</span>';
+          actionBtn = '<button class="btn btn-sm btn-primary shadow-sm" onclick="openUploadModal(\'' + t.task_id + '\', \'' + t.task_name + '\', \'' + t.task_type + '\')"><i class="bi bi-send me-1"></i>ส่งงาน</button>';
+        } else {
+          if (t.eval_result) {
+            if (t.eval_result === 'PASS') {
+              statusBadge = '<span class="badge rounded-pill bg-success"><i class="bi bi-check-circle me-1"></i>ผ่านแล้ว</span>';
+              actionBtn = '<button class="btn btn-sm btn-info text-white me-1 shadow-sm" onclick="openFeedbackModal(\'' + t.eval_result + '\', \'' + t.eval_level + '\', \'' + t.eval_feedback + '\')"><i class="bi bi-star me-1"></i>ผลประเมิน</button>';
+            } else if (t.eval_result === 'REVISE') {
+              statusBadge = '<span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>แก้ไข</span>';
+              actionBtn = '<button class="btn btn-sm btn-info text-white me-1 shadow-sm" onclick="openFeedbackModal(\'' + t.eval_result + '\', \'' + t.eval_level + '\', \'' + t.eval_feedback + '\')"><i class="bi bi-chat-text me-1"></i>ดูข้อแก้ไข</button><button class="btn btn-sm btn-warning shadow-sm" onclick="openUploadModal(\'' + t.task_id + '\', \'' + t.task_name + '\', \'' + t.task_type + '\')"><i class="bi bi-arrow-repeat me-1"></i>ส่งแก้</button>';
+            } else {
+              statusBadge = '<span class="badge rounded-pill bg-danger"><i class="bi bi-x-circle me-1"></i>ไม่ผ่าน</span>';
+              actionBtn = '<button class="btn btn-sm btn-info text-white me-1 shadow-sm" onclick="openFeedbackModal(\'' + t.eval_result + '\', \'' + t.eval_level + '\', \'' + t.eval_feedback + '\')"><i class="bi bi-star me-1"></i>ผลประเมิน</button><button class="btn btn-sm btn-warning shadow-sm" onclick="openUploadModal(\'' + t.task_id + '\', \'' + t.task_name + '\', \'' + t.task_type + '\')"><i class="bi bi-arrow-repeat me-1"></i>ส่งใหม่</button>';
+            }
+          } else {
+            statusBadge = '<span class="badge rounded-pill bg-primary"><i class="bi bi-clock-history me-1"></i>รอตรวจ</span>';
+            actionBtn = '<a href="' + t.file_url + '" target="_blank" class="btn btn-sm btn-outline-primary me-1 shadow-sm"><i class="bi bi-eye"></i> ดูงาน</a><button class="btn btn-sm btn-warning shadow-sm" onclick="openUploadModal(\'' + t.task_id + '\', \'' + t.task_name + '\', \'' + t.task_type + '\')"><i class="bi bi-pencil me-1"></i>ส่งใหม่</button>';
+          }
+        }
+        html += '<tr><td class="fw-bold text-primary">' + t.task_name + '</td><td class="text-muted small">' + (t.task_desc || '-') + '</td><td>' + typeIcon + '</td><td><small class="text-muted">' + t.deadline + '</small></td><td>' + statusBadge + '</td><td>' + actionBtn + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }).getTasksForTrainee(traineeId, userType);
+  }
+
+  function openUploadModal(id, name, type) {
+    document.getElementById('modal-task-id').value = id;
+    document.getElementById('modal-task-type').value = type;
+    document.getElementById('modal-task-name').innerText = name;
+    document.getElementById('upload-progress').classList.add('d-none');
+    document.getElementById('fileInput').value = ""; document.getElementById('linkInput').value = "";
+    if (type === 'LINK') {
+      document.getElementById('input-section-file').classList.add('d-none');
+      document.getElementById('input-section-link').classList.remove('d-none');
+    } else {
+      document.getElementById('input-section-file').classList.remove('d-none');
+      document.getElementById('input-section-link').classList.add('d-none');
+    }
+    new bootstrap.Modal(document.getElementById('uploadModal')).show();
+  }
+
+  function submitFile() {
+    var id = document.getElementById('modal-task-id').value, type = document.getElementById('modal-task-type').value;
+    document.getElementById('upload-progress').classList.remove('d-none');
+    document.querySelector('#uploadModal .modal-footer').classList.add('d-none');
+
+    if (type === 'LINK') {
+      var url = document.getElementById('linkInput').value;
+      if (!url) { Swal.fire('ข้อมูลไม่ครบ', 'กรุณาวางลิงก์ก่อนส่ง', 'warning'); resetModalBtn(); return; }
+      runSubmit({ type: 'LINK', url: url, taskId: id, traineeId: currentUser.personal_id }, 'handleLinkSubmission');
+    } else {
+      var f = document.getElementById('fileInput').files[0];
+      if (!f) { Swal.fire('ข้อมูลไม่ครบ', 'กรุณาเลือกไฟล์', 'warning'); resetModalBtn(); return; }
+      var r = new FileReader();
+      r.onload = function(e) { runSubmit({ type: 'FILE', base64: e.target.result.split(',')[1], mimeType: f.type, fileName: f.name, taskId: id, traineeId: currentUser.personal_id }, 'handleFileUpload'); };
+      r.readAsDataURL(f);
+    }
+  }
+
+  function runSubmit(p, f) {
+    google.script.run.withSuccessHandler(function(res) {
+      Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: res.message, timer: 2000, showConfirmButton: false });
+      bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+      resetModalBtn();
+      loadTraineeTasks(currentUser.personal_id, currentUser.user_type);
+    }).withFailureHandler(function(e) { Swal.fire('เกิดข้อผิดพลาด', e.message, 'error'); resetModalBtn(); })[f](p);
+  }
+
+  function resetModalBtn() { document.querySelector('#uploadModal .modal-footer').classList.remove('d-none'); document.getElementById('upload-progress').classList.add('d-none'); }
+
+  // Modal Feedback (ผลการประเมิน)
+  function openFeedbackModal(r, l, f) {
+    if (l == 'null' || !l) l = '-'; if (f == 'null' || !f) f = '-';
+    var badge = document.getElementById('fb-result-badge'), header = document.querySelector('#feedbackModal .modal-header');
+    if (r === 'PASS') { badge.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill"></i> ผ่าน</span>'; header.className = 'modal-header bg-success text-white'; }
+    else if (r === 'REVISE') { badge.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> แก้ไข</span>'; header.className = 'modal-header bg-warning text-dark'; }
+    else { badge.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> ไม่ผ่าน</span>'; header.className = 'modal-header bg-danger text-white'; }
+    document.getElementById('fb-level-box').innerHTML = "ระดับคุณภาพ: <strong>" + l + "</strong>";
+    document.getElementById('fb-comment').innerText = f;
+    new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+  }
+
+  // ==========================================
+  // 4. TRAINER LOGIC (วิทยากร)
+  // ==========================================
+  function loadTrainerDashboard(trainerId) {
+    var container = document.getElementById('trainer-trainee-list');
+    container.innerHTML = '<div class="text-center w-100"><div class="spinner-border text-success"></div><br>กำลังโหลดข้อมูล...</div>';
+    google.script.run.withSuccessHandler(function (trainees) {
+      if (trainees.length === 0) { container.innerHTML = '<div class="alert alert-warning w-100">ไม่พบรายชื่อผู้อบรมในความดูแล</div>'; return; }
+      var html = '';
+      trainees.forEach(function (t) {
+        html += '<div class="col-md-4"><div class="card shadow-sm h-100 border-0" onclick="openGrading(\'' + t.trainee_id + '\', \'' + t.trainee_name + '\', \'' + t.user_type + '\')" style="cursor:pointer; transition: transform 0.2s;"><div class="card-body border-start border-4 border-success p-3 hover-shadow"><h6 class="fw-bold mb-1 text-dark">' + t.trainee_name + '</h6><small class="text-muted"><i class="bi bi-bookmark-fill me-1"></i>' + t.user_type + '</small><div class="mt-2"><span class="badge bg-secondary rounded-pill">ส่งแล้ว ' + t.submitted_count + ' งาน</span></div></div></div></div>';
+      });
+      container.innerHTML = html;
+    }).getTrainerTrainees(trainerId);
+  }
+
+  function openGrading(tid, tname, ttype) {
+    document.getElementById('trainer-trainee-list-area').classList.add('d-none');
+    document.getElementById('trainer-grading-area').classList.remove('d-none');
+    document.getElementById('grading-trainee-name').innerText = tname;
+    document.getElementById('admin-current-view-trainee-id').value = tid;
+    document.getElementById('admin-current-view-user-type').value = ttype;
+    var list = document.getElementById('grading-task-list');
+    list.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-success"></div></div>';
+    loadWorkListToContainer(tid, ttype, list);
+  }
+
+  function closeGrading() {
+    document.getElementById('trainer-grading-area').classList.add('d-none');
+    document.getElementById('trainer-trainee-list-area').classList.remove('d-none');
+  }
+
+  function loadWorkListToContainer(tid, ttype, containerElement) {
+    google.script.run.withSuccessHandler(function (works) {
+      if (works.length === 0) { containerElement.innerHTML = '<div class="p-4 text-center text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>ยังไม่มีรายการภาระงานสำหรับกลุ่มนี้</div>'; return; }
+      var html = '';
+      works.forEach(function (w) {
+        var statusBadge = '';
+        if (w.submission) {
+          if (w.evaluation) {
+            if (w.evaluation.result === 'PASS') statusBadge = '<span class="badge rounded-pill bg-success"><i class="bi bi-check-circle me-1"></i>ผ่านแล้ว</span>';
+            else if (w.evaluation.result === 'REVISE') statusBadge = '<span class="badge rounded-pill bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>แก้ไข</span>';
+            else statusBadge = '<span class="badge rounded-pill bg-danger"><i class="bi bi-x-circle me-1"></i>ไม่ผ่าน</span>';
+          } else { statusBadge = '<span class="badge rounded-pill bg-success"><i class="bi bi-send-check me-1"></i>ส่งแล้ว</span>'; }
+        } else { statusBadge = '<span class="badge rounded-pill bg-secondary"><i class="bi bi-dash-circle me-1"></i>ยังไม่ส่ง</span>'; }
+
+        var btnGroup = w.submission ? '<a href="' + w.submission.file_url + '" target="_blank" class="btn btn-sm btn-outline-primary me-2 shadow-sm">เปิดไฟล์</a><button class="btn btn-sm btn-success shadow-sm" onclick="openEvalModal(\'' + w.submission.id + '\')">ประเมิน</button>' : '<span class="text-muted small">รอการส่ง...</span>';
+        var feedbackHtml = (w.evaluation && w.evaluation.feedback) ? '<div class="mt-2 p-2 bg-light rounded text-muted small border-start border-3 border-warning"><strong>ข้อเสนอแนะ:</strong> ' + w.evaluation.feedback + '</div>' : '';
+
+        html += '<div class="list-group-item py-3"><div class="d-flex justify-content-between align-items-start"><div class="me-3 w-75"><div class="fw-bold mb-1 text-dark">' + w.task_name + '</div><div class="mb-1">' + statusBadge + '</div>' + feedbackHtml + '</div><div class="d-flex align-items-center" style="min-width: 150px; justify-content: flex-end;">' + btnGroup + '</div></div></div>';
+      });
+      containerElement.innerHTML = html;
+    }).getTraineeWorksForGrading(tid, ttype);
+  }
+
+  function openEvalModal(sid) {
+    document.getElementById('eval-sub-id').value = sid;
+    document.getElementById('eval-feedback').value = '';
+    new bootstrap.Modal(document.getElementById('evalModal')).show();
+  }
+
+  function submitEvaluation() {
+    var p = { submission_id: document.getElementById('eval-sub-id').value, trainer_id: currentUser.personal_id, result: document.querySelector('input[name="evalResultOptions"]:checked').value, level: document.getElementById('eval-level').value, feedback: document.getElementById('eval-feedback').value };
+    google.script.run.withSuccessHandler(function () {
+      Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+      bootstrap.Modal.getInstance(document.getElementById('evalModal')).hide();
+      var tid = document.getElementById('admin-current-view-trainee-id').value, ttype = document.getElementById('admin-current-view-user-type').value;
+      loadWorkListToContainer(tid, ttype, (currentViewContext === 'ADMIN') ? document.getElementById('admin-trainee-work-list') : document.getElementById('grading-task-list'));
+    }).saveEvaluation(p);
+  }
+
+  // ==========================================
+  // 5. ADMIN LOGIC
+  // ==========================================
+  function loadAdminDashboard() {
+    var taskContainer = document.getElementById('admin-task-list');
+    taskContainer.innerHTML = '<div class="p-3 text-center"><div class="spinner-border text-danger"></div></div>';
+
+    google.script.run.withSuccessHandler(function (tasks) {
+      adminAllTasks = tasks;
+      if (tasks.length === 0) { taskContainer.innerHTML = '<div class="alert alert-secondary m-3">ไม่พบภาระงาน</div>'; return; }
+      var html = '';
+      tasks.forEach(function (t) {
+        var st = t.status === 'OPEN' ? '<span class="text-success fw-bold"><i class="bi bi-toggle-on"></i> เปิด</span>' : '<span class="text-secondary fw-bold"><i class="bi bi-toggle-off"></i> ปิด</span>';
+        var fl = t.folder_id ? '<a href="https://drive.google.com/drive/folders/' + t.folder_id + '" target="_blank" class="ms-2"><i class="bi bi-folder-fill text-warning"></i></a>' : '';
+        html += '<div class="list-group-item d-flex justify-content-between align-items-center"><div><strong class="text-dark">' + t.task_name + '</strong> <span class="badge bg-primary ms-1">' + t.target_group + '</span><br><small class="text-muted">ID: ' + t.task_id + ' | ปิดรับ: ' + t.close_date + '</small>' + fl + '</div><div class="d-flex align-items-center gap-2">' + st + '<button class="btn btn-sm btn-outline-warning ms-3 shadow-sm" onclick="openEditTaskModal(\'' + t.task_id + '\')"><i class="bi bi-pencil-square"></i> แก้ไข</button><button class="btn btn-sm btn-outline-secondary shadow-sm" onclick="toggleStatus(\'' + t.task_id + '\',\'' + t.status + '\')">เปลี่ยนสถานะ</button></div></div>';
+      });
+      taskContainer.innerHTML = html;
+    }).getAllTasksAdmin();
+
+    var progressTable = document.getElementById('admin-progress-table');
+    progressTable.innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+
+    google.script.run.withSuccessHandler(function (stats) {
+      if (!stats) return;
+      document.getElementById('stat-total-trainees').innerText = stats.totalTrainees;
+      document.getElementById('stat-active-tasks').innerText = stats.totalActiveTasks;
+      document.getElementById('stat-complete-trainees').innerText = stats.traineeProgress.filter(t => t.percent === 100).length;
+      allTraineeData = stats.traineeProgress;
+      currentAdminPage = 1; renderTable();
+    }).getAdminStats();
+  }
+
+  function renderTable() {
+    var tbody = document.getElementById('admin-progress-table');
+    var filtered = allTraineeData.filter(i => {
+      var term = currentSearchQuery.toLowerCase();
+      var matchS = i.trainee_name.toLowerCase().includes(term);
+      var matchC = (currentTypeFilter === "") || (i.user_type === currentTypeFilter);
+      return matchS && matchC;
+    });
+    var total = filtered.length; var pages = Math.ceil(total / rowsPerPage) || 1;
+    if (currentAdminPage > pages) currentAdminPage = pages; if (currentAdminPage < 1) currentAdminPage = 1;
+    var start = (currentAdminPage - 1) * rowsPerPage; var end = start + rowsPerPage;
+    var pageData = filtered.slice(start, end);
+    document.getElementById('page-info').innerText = "แสดง " + (total === 0 ? 0 : start + 1) + "-" + (end > total ? total : end) + " จาก " + total;
+
+    var html = '';
+    if (total === 0) html = '<tr><td colspan="6" class="text-center text-muted py-4">ไม่พบข้อมูลที่ค้นหา</td></tr>';
+    else {
+      pageData.forEach((s, idx) => {
+        var c = s.percent >= 100 ? 'bg-success' : (s.percent >= 80 ? 'bg-info' : (s.percent >= 50 ? 'bg-warning' : 'bg-danger'));
+        html += '<tr><td class="text-center">' + (start + idx + 1) + '</td><td class="fw-bold">' + s.trainee_name + '</td><td class="text-center"><span class="badge bg-light text-dark border">' + s.user_type + '</span></td><td class="text-center fw-bold">' + s.submitted + ' / ' + s.total + '</td><td><div class="progress" style="height:20px"><div class="progress-bar ' + c + '" style="width:' + s.percent + '%">' + s.percent + '%</div></div></td><td class="text-center"><button class="btn btn-sm btn-outline-primary" onclick="openAdminTraineeView(\'' + s.trainee_id + '\',\'' + s.trainee_name + '\',\'' + s.user_type + '\')"><i class="bi bi-eye-fill"></i> ดูงาน</button></td></tr>';
+      });
+    }
+    tbody.innerHTML = html; renderPaginationControls(pages);
+  }
+
+  function renderPaginationControls(pages) {
+    var nav = document.getElementById('pagination-controls'), html = '';
+    html += '<li class="page-item ' + (currentAdminPage === 1 ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changePage(' + (currentAdminPage - 1) + ')"><i class="bi bi-chevron-left"></i></a></li>';
+    for (var i = 1; i <= pages; i++) {
+      if (pages > 7 && (i !== 1 && i !== pages && (i < currentAdminPage - 1 || i > currentAdminPage + 1))) {
+        if (i === currentAdminPage - 2 || i === currentAdminPage + 2) html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+      } else { html += '<li class="page-item ' + (i === currentAdminPage ? 'active' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changePage(' + i + ')">' + i + '</a></li>'; }
+    }
+    html += '<li class="page-item ' + (currentAdminPage === pages ? 'disabled' : '') + '"><a class="page-link" href="javascript:void(0)" onclick="changePage(' + (currentAdminPage + 1) + ')"><i class="bi bi-chevron-right"></i></a></li>';
+    nav.innerHTML = html;
+  }
+
+  function handleFilter() { currentSearchQuery = document.getElementById('searchInput').value; currentTypeFilter = document.getElementById('typeFilter').value; currentAdminPage = 1; renderTable(); }
+  function changeRowsPerPage() { rowsPerPage = parseInt(document.getElementById('rowsPerPage').value); currentAdminPage = 1; renderTable(); }
+  function changePage(p) { currentAdminPage = p; renderTable(); }
+
+  // Admin Modal View
+  function openAdminTraineeView(tid, tname, ttype) {
+    document.getElementById('adminViewTraineeTitle').innerText = "📄 งานของ: " + tname;
+    document.getElementById('admin-current-view-trainee-id').value = tid;
+    document.getElementById('admin-current-view-user-type').value = ttype;
+    var container = document.getElementById('admin-trainee-work-list');
+    container.innerHTML = '<div class="p-5 text-center"><div class="spinner-border text-primary"></div></div>';
+    new bootstrap.Modal(document.getElementById('adminViewTraineeModal')).show();
+    loadWorkListToContainer(tid, ttype, container);
+  }
+
+  // Manage Tasks
+  function openCreateTaskModal() { document.getElementById('createTaskForm').reset(); document.getElementById('new-open-date').valueAsDate = new Date(); new bootstrap.Modal(document.getElementById('createTaskModal')).show(); }
+  
+  function submitNewTask() {
+    var p = { taskName: document.getElementById('new-task-name').value, taskType: document.getElementById('new-task-type').value, targetGroup: document.getElementById('new-target-group').value, fiscalYear: document.getElementById('new-fiscal-year').value, description: document.getElementById('new-task-desc').value, openDate: document.getElementById('new-open-date').value, closeDate: document.getElementById('new-close-date').value, round: document.getElementById('new-task-round').value };
+    if (!p.taskName) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุชื่องาน', 'warning');
+    google.script.run.withSuccessHandler(function (r) { Swal.fire('สำเร็จ', r.message, 'success'); bootstrap.Modal.getInstance(document.getElementById('createTaskModal')).hide(); loadAdminDashboard(); }).createNewTask(p);
+  }
+
+  function openEditTaskModal(id) {
+    var t = adminAllTasks.find(x => x.task_id === id); if (!t) return;
+    function fmt(d) { if(!d||d==='-')return''; var p=d.split('/'); return (p.length===3)?((parseInt(p[2])>2400?parseInt(p[2])-543:p[2])+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0')):''; }
+    document.getElementById('edit-task-id').value = t.task_id; document.getElementById('edit-task-name').value = t.task_name; document.getElementById('edit-task-type').value = t.task_type; document.getElementById('edit-target-group').value = t.target_group || 'ALL'; document.getElementById('edit-task-desc').value = t.description; document.getElementById('edit-fiscal-year').value = t.fiscal_year; document.getElementById('edit-task-round').value = t.round; document.getElementById('edit-open-date').value = fmt(t.open_date); document.getElementById('edit-close-date').value = fmt(t.close_date);
+    new bootstrap.Modal(document.getElementById('editTaskModal')).show();
+  }
+
+  function submitEditTask() {
+    var p = { taskId: document.getElementById('edit-task-id').value, taskName: document.getElementById('edit-task-name').value, taskType: document.getElementById('edit-task-type').value, targetGroup: document.getElementById('edit-target-group').value, fiscalYear: document.getElementById('edit-fiscal-year').value, description: document.getElementById('edit-task-desc').value, openDate: document.getElementById('edit-open-date').value, closeDate: document.getElementById('edit-close-date').value, round: document.getElementById('edit-task-round').value };
+    google.script.run.withSuccessHandler(function (r) { Swal.fire('สำเร็จ', r.message, 'success'); bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide(); loadAdminDashboard(); }).updateTask(p);
+  }
+
+  function toggleStatus(id, st) { Swal.fire({title:'เปลี่ยนสถานะงาน?', icon:'question', showCancelButton:true, confirmButtonText:'ใช่, เปลี่ยนเลย'}).then((res) => { if(res.isConfirmed) google.script.run.withSuccessHandler(()=>loadAdminDashboard()).toggleTaskStatus(id, st); }); }
+  function confirmDeleteTask() { Swal.fire({title:'ยืนยันการลบ?', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc3545', confirmButtonText:'ใช่, ลบเลย'}).then((res) => { if(res.isConfirmed) google.script.run.withSuccessHandler(()=> { Swal.fire('ลบสำเร็จ','','success'); bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide(); loadAdminDashboard(); }).deleteTask(document.getElementById('edit-task-id').value); }); }
+  
+  // CSV Export
+  function exportToCSV() {
+    if (!allTraineeData.length) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีข้อมูลสำหรับการส่งออก', 'warning');
+    var csv = "Trainee ID,Name,Group,Submitted,Total,Progress (%)\n" + allTraineeData.map(r => `"${r.trainee_id}","${r.trainee_name}","${r.user_type}",${r.submitted},${r.total},${r.percent}`).join("\n");
+    var link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); link.download = "TMS_Report.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  }
+</script>
