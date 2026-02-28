@@ -63,9 +63,26 @@
 
     <div class="container mt-4">
       
-<div id="view-trainee" class="role-view d-none">
+      <div id="view-trainee" class="role-view d-none">
         <div class="d-flex justify-content-between align-items-center mb-3 border-start border-4 border-primary ps-2">
           <h4 class="mb-0 text-primary">แดชบอร์ดความก้าวหน้า <span id="trainee-group-badge" class="badge bg-secondary fs-6 ms-2"></span></h4>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4 bg-white border-start border-4 border-info">
+          <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <div class="mb-3 mb-md-0 text-center text-md-start">
+              <h5 class="mb-1 fw-bold text-info"><i class="bi bi-clock-history me-2"></i>ลงเวลาเข้าอบรมประจำวัน</h5>
+              <p class="mb-0 text-muted small" id="attendance-status-text">กำลังตรวจสอบสถานะการลงเวลา...</p>
+            </div>
+            <div class="d-flex gap-2">
+              <button id="btn-checkin" class="btn btn-primary shadow-sm" onclick="openCheckInModal()" disabled>
+                <i class="bi bi-box-arrow-in-right me-1"></i> Check In
+              </button>
+              <button id="btn-checkout" class="btn btn-outline-danger shadow-sm" onclick="openCheckOutModal()" disabled>
+                <i class="bi bi-box-arrow-right me-1"></i> Check Out
+              </button>
+            </div>
+          </div>
         </div>
         
         <div class="row g-3 mb-4">
@@ -440,6 +457,52 @@
           </div>
         </div>
         <div class="modal-footer bg-light"><button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">ปิดหน้าต่าง</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="checkInModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="bi bi-box-arrow-in-right me-2"></i>Check In เข้าอบรม</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="form-floating">
+            <textarea class="form-control border-primary" id="learning-goal" placeholder="เป้าหมาย" style="height: 120px" required></textarea>
+            <label for="learning-goal" class="text-primary fw-bold">🎯 เป้าหมายในการเรียนรู้ในวันนี้ของคุณคืออะไร?</label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="submitCheckIn()" id="btn-submit-checkin">
+            <i class="bi bi-save-fill me-2"></i>บันทึก Check In
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="checkOutModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-box-arrow-right me-2"></i>Check Out ออกจากการอบรม</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="form-floating">
+            <textarea class="form-control border-danger" id="learning-reflection" placeholder="สะท้อนผล" style="height: 120px" required></textarea>
+            <label for="learning-reflection" class="text-danger fw-bold">💡 สะท้อนสิ่งที่ได้เรียนรู้ในวันนี้ (Reflection)</label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="button" class="btn btn-danger px-4 shadow-sm" onclick="submitCheckOut()" id="btn-submit-checkout">
+            <i class="bi bi-save-fill me-2"></i>บันทึก Check Out
+          </button>
+        </div>
       </div>
     </div>
   </div>
