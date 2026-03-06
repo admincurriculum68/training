@@ -5,14 +5,14 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
   <style>
+    /* ตั้งค่า CSS พื้นฐาน */
     body { padding-bottom: 60px; background-color: #f0f2f5; font-family: 'Sarabun', sans-serif; }
     .card { border: none; }
     .navbar-brand-text { line-height: 1.2; }
     .navbar-logo { width: 60px; height: 60px; object-fit: contain; filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.2)); }
+    /* ปรับขนาดให้พอดีบนหน้าจอมือถือ */
     @media (max-width: 768px) {
       .navbar-brand-text div { font-size: 0.8rem !important; }
       .navbar-brand-text div:first-child { font-size: 0.95rem !important; }
@@ -45,6 +45,7 @@
   </div>
 
   <div id="dashboard-section" class="d-none">
+    
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm py-2">
       <div class="container-fluid">
         <div class="d-flex align-items-center me-auto">
@@ -89,45 +90,29 @@
           <div class="col-md-4">
             <div class="card bg-white shadow-sm border-0 h-100">
               <div class="card-body d-flex align-items-center">
-                <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded-circle">
-                  <i class="bi bi-list-task fs-3 text-primary"></i>
-                </div>
-                <div class="ms-3">
-                  <p class="text-muted mb-0 small">ภาระงานทั้งหมด</p>
-                  <h3 class="mb-0 fw-bold text-dark" id="my-total-tasks">0</h3>
-                </div>
+                <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded-circle"><i class="bi bi-list-task fs-3 text-primary"></i></div>
+                <div class="ms-3"><p class="text-muted mb-0 small">ภาระงานทั้งหมด</p><h3 class="mb-0 fw-bold text-dark" id="my-total-tasks">0</h3></div>
               </div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="card bg-white shadow-sm border-0 h-100">
               <div class="card-body d-flex align-items-center">
-                <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded-circle">
-                  <i class="bi bi-send-check fs-3 text-success"></i>
-                </div>
-                <div class="ms-3">
-                  <p class="text-muted mb-0 small">ส่งงานแล้ว</p>
-                  <h3 class="mb-0 fw-bold text-success" id="my-submitted-tasks">0</h3>
-                </div>
+                <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded-circle"><i class="bi bi-send-check fs-3 text-success"></i></div>
+                <div class="ms-3"><p class="text-muted mb-0 small">ส่งงานแล้ว</p><h3 class="mb-0 fw-bold text-success" id="my-submitted-tasks">0</h3></div>
               </div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="card bg-white shadow-sm border-0 h-100 p-3 d-flex justify-content-center">
-               <div class="d-flex justify-content-between align-items-end mb-1">
-                 <span class="text-muted small fw-bold">ความก้าวหน้า</span>
-                 <span class="fw-bold text-primary" id="my-progress-text">0%</span>
-               </div>
-               <div class="progress" style="height: 20px; border-radius: 10px;">
-                  <div id="my-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;">0%</div>
-               </div>
+               <div class="d-flex justify-content-between align-items-end mb-1"><span class="text-muted small fw-bold">ความก้าวหน้า</span><span class="fw-bold text-primary" id="my-progress-text">0%</span></div>
+               <div class="progress" style="height: 20px; border-radius: 10px;"><div id="my-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%;">0%</div></div>
             </div>
           </div>
         </div>
 
         <h5 class="mb-3 mt-4 border-start border-4 border-secondary ps-2 text-secondary">รายการภาระงานที่ต้องส่ง</h5>
-        <div id="trainee-task-list" class="row g-3"></div>
-      </div>
+        <div id="trainee-task-list" class="row g-3"></div> </div>
 
       <div id="view-trainer" class="role-view d-none">
         <div id="trainer-trainee-list-area">
@@ -138,17 +123,13 @@
           <div class="mb-4">
             <h4 class="fw-bold border-start border-4 border-success ps-2 text-success">ตรวจติดตามงาน</h4>
             <div class="d-flex justify-content-between align-items-center mt-3 p-3 bg-white rounded shadow-sm border-start border-4 border-success">
-              <div><small class="text-muted">ผู้อบรม:</small>
-                <h5 class="fw-bold text-success mb-0" id="grading-trainee-name">...</h5>
-              </div>
+              <div><small class="text-muted">ผู้อบรม:</small><h5 class="fw-bold text-success mb-0" id="grading-trainee-name">...</h5></div>
               <button class="btn btn-secondary btn-sm px-3 shadow-sm" onclick="closeGrading()"><i class="bi bi-x-lg me-1"></i>ปิดหน้าต่าง</button>
             </div>
           </div>
           <div class="card shadow-sm border-0">
             <div class="card-header bg-white fw-bold text-success"><i class="bi bi-list-task me-2"></i>รายการภาระงาน</div>
-            <div class="card-body p-0">
-              <div id="grading-task-list" class="list-group list-group-flush"></div>
-            </div>
+            <div class="card-body p-0"><div id="grading-task-list" class="list-group list-group-flush"></div></div>
           </div>
         </div>
       </div>
@@ -165,53 +146,33 @@
         <div class="row g-3 mb-4">
           <div class="col-md-4">
             <div class="card text-white shadow-sm border-0" style="background: linear-gradient(45deg, #0d6efd, #0a58ca);">
-              <div class="card-body text-center p-4"><i class="bi bi-people fs-1 mb-2 text-white-50"></i>
-                <h6 class="card-title mb-0">จำนวนผู้อบรม</h6>
-                <h2 class="display-6 fw-bold my-2" id="stat-total-trainees">0</h2><small class="text-white-50">คน</small>
-              </div>
+              <div class="card-body text-center p-4"><i class="bi bi-people fs-1 mb-2 text-white-50"></i><h6 class="card-title mb-0">จำนวนผู้อบรม</h6><h2 class="display-6 fw-bold my-2" id="stat-total-trainees">0</h2><small class="text-white-50">คน</small></div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="card text-white shadow-sm border-0" style="background: linear-gradient(45deg, #198754, #146c43);">
-              <div class="card-body text-center p-4"><i class="bi bi-list-check fs-1 mb-2 text-white-50"></i>
-                <h6 class="card-title mb-0">ภาระงานที่เปิดรับ (Active)</h6>
-                <h2 class="display-6 fw-bold my-2" id="stat-active-tasks">0</h2><small class="text-white-50">งาน</small>
-              </div>
+              <div class="card-body text-center p-4"><i class="bi bi-list-check fs-1 mb-2 text-white-50"></i><h6 class="card-title mb-0">ภาระงานที่เปิดรับ (Active)</h6><h2 class="display-6 fw-bold my-2" id="stat-active-tasks">0</h2><small class="text-white-50">งาน</small></div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="card text-dark shadow-sm border-0" style="background: linear-gradient(45deg, #ffc107, #ffca2c);">
-              <div class="card-body text-center p-4"><i class="bi bi-trophy-fill fs-1 mb-2 text-black-50"></i>
-                <h6 class="card-title mb-0">ส่งงานครบ 100%</h6>
-                <h2 class="display-6 fw-bold my-2" id="stat-complete-trainees">0</h2><small class="text-black-50">คน</small>
-              </div>
+              <div class="card-body text-center p-4"><i class="bi bi-trophy-fill fs-1 mb-2 text-black-50"></i><h6 class="card-title mb-0">ส่งงานครบ 100%</h6><h2 class="display-6 fw-bold my-2" id="stat-complete-trainees">0</h2><small class="text-black-50">คน</small></div>
             </div>
           </div>
         </div>
 
         <div class="card shadow-sm mb-4 border-0">
-          <div class="card-header bg-white text-dark d-flex justify-content-between align-items-center py-3">
-            <span class="fw-bold"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>ความก้าวหน้าการส่งงานรายบุคคล</span>
-          </div>
+          <div class="card-header bg-white text-dark d-flex justify-content-between align-items-center py-3"><span class="fw-bold"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>ความก้าวหน้าการส่งงานรายบุคคล</span></div>
           <div class="d-flex justify-content-between align-items-center p-3 bg-light border-bottom flex-wrap gap-2">
             <div class="d-flex align-items-center bg-white p-2 rounded shadow-sm">
               <span class="me-2 text-muted small"><i class="bi bi-list-ol me-1"></i>แสดง</span>
-              <select id="rowsPerPage" class="form-select form-select-sm border-0 bg-light" style="width: 70px; cursor: pointer;" onchange="changeRowsPerPage()">
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-                <option value="1000">ทั้งหมด</option>
-              </select>
+              <select id="rowsPerPage" class="form-select form-select-sm border-0 bg-light" style="width: 70px; cursor: pointer;" onchange="changeRowsPerPage()"><option value="10">10</option><option value="20">20</option><option value="50">50</option><option value="1000">ทั้งหมด</option></select>
             </div>
             <div class="d-flex gap-2">
               <div class="input-group input-group-sm shadow-sm">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-funnel-fill text-muted"></i></span>
                 <select id="typeFilter" class="form-select border-start-0" style="max-width: 180px; cursor: pointer;" onchange="handleFilter()">
-                  <option value="">🎯 ทุกกลุ่มเป้าหมาย</option>
-                  <option value="ศึกษานิเทศก์">ศึกษานิเทศก์</option>
-                  <option value="ผู้บริหารสถานศึกษา">ผู้บริหารสถานศึกษา</option>
-                  <option value="ครู ประถมต้น">ครู ประถมต้น</option>
-                  <option value="ครู ประถมปลาย">ครู ประถมปลาย</option>
+                  <option value="">🎯 ทุกกลุ่มเป้าหมาย</option><option value="ศึกษานิเทศก์">ศึกษานิเทศก์</option><option value="ผู้บริหารสถานศึกษา">ผู้บริหารสถานศึกษา</option><option value="ครู ประถมต้น">ครู ประถมต้น</option><option value="ครู ประถมปลาย">ครู ประถมปลาย</option>
                 </select>
               </div>
               <div class="input-group input-group-sm shadow-sm" style="width: 220px;">
@@ -222,33 +183,17 @@
           </div>
           <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                  <tr class="text-muted small text-uppercase">
-                    <th style="width: 5%;" class="text-center">#</th>
-                    <th style="width: 25%;">ชื่อผู้อบรม</th>
-                    <th class="text-center" style="width: 20%;">ประเภทกลุ่ม</th>
-                    <th class="text-center" style="width: 15%;">สถานะการส่ง</th>
-                    <th style="width: 25%;">ความก้าวหน้า</th>
-                    <th class="text-center" style="width: 10%;">ดำเนินการ</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-progress-table" class="bg-white"></tbody>
-              </table>
+              <table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr class="text-muted small text-uppercase"><th style="width: 5%;" class="text-center">#</th><th style="width: 25%;">ชื่อผู้อบรม</th><th class="text-center" style="width: 20%;">ประเภทกลุ่ม</th><th class="text-center" style="width: 15%;">สถานะการส่ง</th><th style="width: 25%;">ความก้าวหน้า</th><th class="text-center" style="width: 10%;">ดำเนินการ</th></tr></thead><tbody id="admin-progress-table" class="bg-white"></tbody></table>
             </div>
           </div>
           <div class="card-footer bg-white border-top py-3">
-            <div class="d-flex justify-content-between align-items-center"><small class="text-muted" id="page-info">แสดง 0-0 จาก 0 รายการ</small>
-              <nav><ul class="pagination pagination-sm mb-0 shadow-sm" id="pagination-controls"></ul></nav>
-            </div>
+            <div class="d-flex justify-content-between align-items-center"><small class="text-muted" id="page-info">แสดง 0-0 จาก 0 รายการ</small><nav><ul class="pagination pagination-sm mb-0 shadow-sm" id="pagination-controls"></ul></nav></div>
           </div>
         </div>
 
         <div class="card shadow-sm border-0">
           <div class="card-header bg-white text-danger fw-bold py-3"><i class="bi bi-gear-fill me-2"></i>จัดการรายการภาระงาน</div>
-          <div class="card-body p-0">
-            <div id="admin-task-list" class="list-group list-group-flush"></div>
-          </div>
+          <div class="card-body p-0"><div id="admin-task-list" class="list-group list-group-flush"></div></div>
         </div>
       </div>
     </div>
@@ -259,16 +204,11 @@
   <div class="modal fade" id="uploadModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title"><i class="bi bi-cloud-upload-fill me-2"></i>ส่งงาน/รายงาน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-primary text-white"><h5 class="modal-title"><i class="bi bi-cloud-upload-fill me-2"></i>ส่งงาน/รายงาน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <form id="uploadForm">
             <input type="hidden" id="modal-task-id"><input type="hidden" id="modal-task-type">
-            <div class="mb-4 text-center">
-              <h6 class="text-muted mb-1">หัวข้อภาระงาน</h6>
-              <h5 class="fw-bold text-primary" id="modal-task-name">...</h5>
-            </div>
+            <div class="mb-4 text-center"><h6 class="text-muted mb-1">หัวข้อภาระงาน</h6><h5 class="fw-bold text-primary" id="modal-task-name">...</h5></div>
             <div id="input-section-file" class="bg-light p-3 rounded border border-dashed text-center">
               <i class="bi bi-file-earmark-arrow-up text-primary display-4"></i>
               <div class="mt-3"><label for="fileInput" class="form-label fw-bold">เลือกไฟล์เอกสาร/รูปภาพ</label><input type="file" class="form-control" id="fileInput"></div>
@@ -278,14 +218,9 @@
               <div class="mt-3"><label for="linkInput" class="form-label fw-bold">วางลิงก์ (URL)</label><input type="url" class="form-control" id="linkInput" placeholder="https://drive.google.com/..."></div>
             </div>
           </form>
-          <div id="upload-progress" class="d-none text-center mt-4">
-            <div class="spinner-border text-primary mb-2" role="status"></div><p class="text-muted mb-0">กำลังบันทึกข้อมูล กรุณารอสักครู่...</p>
-          </div>
+          <div id="upload-progress" class="d-none text-center mt-4"><div class="spinner-border text-primary mb-2" role="status"></div><p class="text-muted mb-0">กำลังบันทึกข้อมูล กรุณารอสักครู่...</p></div>
         </div>
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-          <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="submitFile()"><i class="bi bi-send-fill me-2"></i>ยืนยันการส่ง</button>
-        </div>
+        <div class="modal-footer bg-light"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button><button type="button" class="btn btn-primary px-4 shadow-sm" onclick="submitFile()"><i class="bi bi-send-fill me-2"></i>ยืนยันการส่ง</button></div>
       </div>
     </div>
   </div>
@@ -293,31 +228,13 @@
   <div class="modal fade" id="createTaskModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title"><i class="bi bi-plus-circle-fill me-2"></i>สร้างภาระงานใหม่</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-danger text-white"><h5 class="modal-title"><i class="bi bi-plus-circle-fill me-2"></i>สร้างภาระงานใหม่</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <form id="createTaskForm">
             <div class="form-floating mb-3"><input type="text" class="form-control" id="new-task-name" required><label>ชื่อภาระงาน</label></div>
             <div class="row g-2 mb-3">
-              <div class="col-md-6">
-                <div class="form-floating">
-                  <select class="form-select" id="new-task-type">
-                    <option value="FILE">📁 ส่งไฟล์</option><option value="LINK">🔗 ส่งลิงก์</option>
-                  </select><label>รูปแบบการส่ง</label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-floating">
-                  <select class="form-select text-primary fw-bold" id="new-target-group">
-                    <option value="ALL">🎯 ทุกกลุ่มเป้าหมาย (ALL)</option>
-                    <option value="ศึกษานิเทศก์">ศึกษานิเทศก์</option>
-                    <option value="ผู้บริหารสถานศึกษา">ผู้บริหารสถานศึกษา</option>
-                    <option value="ครู ประถมต้น">ครู ประถมต้น</option>
-                    <option value="ครู ประถมปลาย">ครู ประถมปลาย</option>
-                  </select><label>มอบหมายให้กลุ่ม</label>
-                </div>
-              </div>
+              <div class="col-md-6"><div class="form-floating"><select class="form-select" id="new-task-type"><option value="FILE">📁 ส่งไฟล์</option><option value="LINK">🔗 ส่งลิงก์</option></select><label>รูปแบบการส่ง</label></div></div>
+              <div class="col-md-6"><div class="form-floating"><select class="form-select text-primary fw-bold" id="new-target-group"><option value="ALL">🎯 ทุกกลุ่มเป้าหมาย (ALL)</option><option value="ศึกษานิเทศก์">ศึกษานิเทศก์</option><option value="ผู้บริหารสถานศึกษา">ผู้บริหารสถานศึกษา</option><option value="ครู ประถมต้น">ครู ประถมต้น</option><option value="ครู ประถมปลาย">ครู ประถมปลาย</option></select><label>มอบหมายให้กลุ่ม</label></div></div>
             </div>
             <div class="form-floating mb-3"><textarea class="form-control" id="new-task-desc" style="height: 100px"></textarea><label>คำชี้แจง/รายละเอียด</label></div>
             <div class="row g-2 mb-3 bg-light p-3 rounded border">
@@ -331,10 +248,7 @@
             </div>
           </form>
         </div>
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-          <button type="button" class="btn btn-danger px-4 shadow-sm" onclick="submitNewTask()"><i class="bi bi-save-fill me-2"></i>บันทึกข้อมูล</button>
-        </div>
+        <div class="modal-footer bg-light"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button><button type="button" class="btn btn-danger px-4 shadow-sm" onclick="submitNewTask()"><i class="bi bi-save-fill me-2"></i>บันทึกข้อมูล</button></div>
       </div>
     </div>
   </div>
@@ -342,32 +256,14 @@
   <div class="modal fade" id="editTaskModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-warning text-dark">
-          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>แก้ไขภาระงาน</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-warning text-dark"><h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>แก้ไขภาระงาน</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <form id="editTaskForm">
             <input type="hidden" id="edit-task-id">
             <div class="form-floating mb-3"><input type="text" class="form-control" id="edit-task-name" required><label>ชื่อภาระงาน</label></div>
             <div class="row g-2 mb-3">
-              <div class="col-md-6">
-                <div class="form-floating">
-                  <select class="form-select" id="edit-task-type">
-                    <option value="FILE">📁 ส่งไฟล์</option><option value="LINK">🔗 ส่งลิงก์</option>
-                  </select><label>รูปแบบการส่ง</label>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="form-floating">
-                  <select class="form-select text-primary fw-bold" id="edit-target-group">
-                    <option value="ALL">🎯 ทุกกลุ่มเป้าหมาย (ALL)</option>
-                    <option value="ศึกษานิเทศก์">ศึกษานิเทศก์</option>
-                    <option value="ผู้บริหารสถานศึกษา">ผู้บริหารสถานศึกษา</option>
-                    <option value="ครู ประถมต้น">ครู ประถมต้น</option>
-                    <option value="ครู ประถมปลาย">ครู ประถมปลาย</option>
-                  </select><label>มอบหมายให้กลุ่ม</label>
-                </div>
-              </div>
+              <div class="col-md-6"><div class="form-floating"><select class="form-select" id="edit-task-type"><option value="FILE">📁 ส่งไฟล์</option><option value="LINK">🔗 ส่งลิงก์</option></select><label>รูปแบบการส่ง</label></div></div>
+              <div class="col-md-6"><div class="form-floating"><select class="form-select text-primary fw-bold" id="edit-target-group"><option value="ALL">🎯 ทุกกลุ่มเป้าหมาย (ALL)</option><option value="ศึกษานิเทศก์">ศึกษานิเทศก์</option><option value="ผู้บริหารสถานศึกษา">ผู้บริหารสถานศึกษา</option><option value="ครู ประถมต้น">ครู ประถมต้น</option><option value="ครู ประถมปลาย">ครู ประถมปลาย</option></select><label>มอบหมายให้กลุ่ม</label></div></div>
             </div>
             <div class="form-floating mb-3"><textarea class="form-control" id="edit-task-desc" style="height: 100px"></textarea><label>คำชี้แจง/รายละเอียด</label></div>
             <div class="row g-2 mb-3 bg-light p-3 rounded border">
@@ -382,10 +278,7 @@
         </div>
         <div class="modal-footer bg-light d-flex justify-content-between">
           <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteTask()"><i class="bi bi-trash-fill me-2"></i>ลบงานนี้</button>
-          <div>
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-            <button type="button" class="btn btn-warning px-4 shadow-sm" onclick="submitEditTask()"><i class="bi bi-save-fill me-2"></i>บันทึกการแก้ไข</button>
-          </div>
+          <div><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button><button type="button" class="btn btn-warning px-4 shadow-sm" onclick="submitEditTask()"><i class="bi bi-save-fill me-2"></i>บันทึกการแก้ไข</button></div>
         </div>
       </div>
     </div>
@@ -394,13 +287,8 @@
   <div class="modal fade" id="adminViewTraineeModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="adminViewTraineeTitle"><i class="bi bi-person-lines-fill me-2"></i>รายการงานของผู้อบรม</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body bg-light p-0"><input type="hidden" id="admin-current-view-trainee-id"><input type="hidden" id="admin-current-view-user-type">
-          <div id="admin-trainee-work-list" class="list-group list-group-flush"></div>
-        </div>
+        <div class="modal-header bg-primary text-white"><h5 class="modal-title" id="adminViewTraineeTitle"><i class="bi bi-person-lines-fill me-2"></i>รายการงานของผู้อบรม</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body bg-light p-0"><input type="hidden" id="admin-current-view-trainee-id"><input type="hidden" id="admin-current-view-user-type"><div id="admin-trainee-work-list" class="list-group list-group-flush"></div></div>
         <div class="modal-footer bg-white"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิดหน้าต่าง</button></div>
       </div>
     </div>
@@ -409,9 +297,7 @@
   <div class="modal fade" id="evalModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-success text-white">
-          <h5 class="modal-title"><i class="bi bi-clipboard-check-fill me-2"></i>ประเมินผลงาน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-success text-white"><h5 class="modal-title"><i class="bi bi-clipboard-check-fill me-2"></i>ประเมินผลงาน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <form id="evalForm">
             <input type="hidden" id="eval-sub-id">
@@ -423,14 +309,7 @@
                 <input type="radio" class="btn-check" name="evalResultOptions" id="resFail" value="FAIL"><label class="btn btn-outline-danger py-2" for="resFail"><i class="bi bi-x-circle-fill me-1"></i>ไม่ผ่าน (Fail)</label>
               </div>
             </div>
-            <div class="form-floating mb-3">
-              <select class="form-select" id="eval-level">
-                <option value="ดีมาก" selected>⭐️⭐️⭐️⭐️ ดีมาก</option>
-                <option value="ดี">⭐️⭐️⭐️ ดี</option>
-                <option value="พอใช้">⭐️⭐️ พอใช้</option>
-                <option value="ปรับปรุง">⭐️ ปรับปรุง</option>
-              </select><label>ระดับคุณภาพ</label>
-            </div>
+            <div class="form-floating mb-3"><select class="form-select" id="eval-level"><option value="ดีมาก" selected>⭐️⭐️⭐️⭐️ ดีมาก</option><option value="ดี">⭐️⭐️⭐️ ดี</option><option value="พอใช้">⭐️⭐️ พอใช้</option><option value="ปรับปรุง">⭐️ ปรับปรุง</option></select><label>ระดับคุณภาพ</label></div>
             <div class="form-floating"><textarea class="form-control" id="eval-feedback" placeholder="ข้อเสนอแนะ" style="height: 120px"></textarea><label>ข้อเสนอแนะเพื่อการพัฒนา</label></div>
           </form>
         </div>
@@ -442,9 +321,7 @@
   <div class="modal fade" id="feedbackModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-info text-white">
-          <h5 class="modal-title"><i class="bi bi-info-circle-fill me-2"></i>ผลการตรวจประเมิน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-info text-white"><h5 class="modal-title"><i class="bi bi-info-circle-fill me-2"></i>ผลการตรวจประเมิน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <div class="text-center mb-4 p-3 bg-light rounded border border-info border-opacity-25">
             <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.85rem;">สรุปผล (Result)</h6>
@@ -464,10 +341,7 @@
   <div class="modal fade" id="checkInModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title"><i class="bi bi-box-arrow-in-right me-2"></i>Check In เข้าอบรม</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-primary text-white"><h5 class="modal-title"><i class="bi bi-box-arrow-in-right me-2"></i>Check In เข้าอบรม</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <div class="form-floating">
             <textarea class="form-control border-primary" id="learning-goal" placeholder="เป้าหมาย" style="height: 120px" required></textarea>
@@ -476,9 +350,7 @@
         </div>
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-          <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="submitCheckIn()" id="btn-submit-checkin">
-            <i class="bi bi-save-fill me-2"></i>บันทึก Check In
-          </button>
+          <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="submitCheckIn()" id="btn-submit-checkin"><i class="bi bi-save-fill me-2"></i>บันทึก Check In</button>
         </div>
       </div>
     </div>
@@ -487,10 +359,7 @@
   <div class="modal fade" id="checkOutModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg">
-        <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title"><i class="bi bi-box-arrow-right me-2"></i>Check Out ออกจากการอบรม</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header bg-danger text-white"><h5 class="modal-title"><i class="bi bi-box-arrow-right me-2"></i>Check Out ออกจากการอบรม</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
         <div class="modal-body p-4">
           <div class="form-floating">
             <textarea class="form-control border-danger" id="learning-reflection" placeholder="สะท้อนผล" style="height: 120px" required></textarea>
@@ -499,9 +368,7 @@
         </div>
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-          <button type="button" class="btn btn-danger px-4 shadow-sm" onclick="submitCheckOut()" id="btn-submit-checkout">
-            <i class="bi bi-save-fill me-2"></i>บันทึก Check Out
-          </button>
+          <button type="button" class="btn btn-danger px-4 shadow-sm" onclick="submitCheckOut()" id="btn-submit-checkout"><i class="bi bi-save-fill me-2"></i>บันทึก Check Out</button>
         </div>
       </div>
     </div>
@@ -509,6 +376,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
   <?!= include('JavaScript'); ?>
 </body>
 </html>
