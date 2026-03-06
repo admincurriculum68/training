@@ -1,33 +1,37 @@
 <script>
   // ==========================================
-  // 1. GLOBAL VARIABLES
+  // 1. GLOBAL VARIABLES (ตัวแปรระดับโลกสำหรับเก็บสถานะต่างๆ ในหน้าเว็บ)
   // ==========================================
-  var currentUser = {};
-  var allTraineeData = [];
-  var adminAllTasks = []; 
-  var currentAdminPage = 1;
-  var rowsPerPage = 10;
-  var currentSearchQuery = "";
-  var currentTypeFilter = "";
-  var currentViewContext = "";
+  var currentUser = {};          // เก็บข้อมูลผู้ใช้ที่ล็อกอิน
+  var allTraineeData = [];       // เก็บข้อมูลผู้อบรมทั้งหมดเพื่อใช้ค้นหาและกรอง (Admin)
+  var adminAllTasks = [];        // เก็บข้อมูลงานทั้งหมดเพื่อใช้ในระบบแก้ไข (Admin)
+  var currentAdminPage = 1;      // หน้าปัจจุบันของตารางแอดมิน
+  var rowsPerPage = 10;          // จำนวนแถวที่แสดงต่อ 1 หน้า
+  var currentSearchQuery = "";   // คำค้นหาปัจจุบัน
+  var currentTypeFilter = "";    // ตัวกรองกลุ่มเป้าหมายปัจจุบัน
+  var currentViewContext = "";   // กำหนดว่าหน้าปัจจุบันเป็นจอของแอดมินหรือวิทยากร
 
   // ==========================================
-  // 2. AUTHENTICATION & ROUTING
+  // 2. AUTHENTICATION (ระบบตรวจสอบการเข้าสู่ระบบ)
   // ==========================================
   function handleLogin(e) {
-    e.preventDefault();
+    e.preventDefault(); // ป้องกันหน้าเว็บรีเฟรชเมื่อกดปุ่ม
     var btn = document.getElementById('btn-login');
     var errorBox = document.getElementById('login-error');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังตรวจสอบ...';
+    
+    // แสดงเอฟเฟกต์หมุนโหลด
+    btn.disabled = true; 
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังตรวจสอบ...';
     errorBox.classList.add('d-none');
 
+    // เรียกฟังก์ชัน loginUser ฝั่งเซิร์ฟเวอร์ (Code.gs)
     google.script.run
       .withSuccessHandler(function (res) {
         if (res.status === 'SUCCESS') {
           currentUser = res;
-          showDashboard(res);
+          showDashboard(res); // ถ้าสำเร็จให้โชว์หน้า Dashboard
         } else {
-          errorBox.innerText = res.message; errorBox.classList.remove('d-none');
+          errorBox.innerText = res.message; errorBox.classList.remove('d-none'); // ถ้าผิดให้โชว์ข้อความแจ้งเตือน
           btn.disabled = false; btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>เข้าสู่ระบบ';
         }
       })
@@ -58,11 +62,12 @@
     });
   }
 
+  // ซ่อนหน้า Login และแสดงหน้า Dashboard ตามบทบาท (Role) ของผู้ใช้
   function showDashboard(user) {
     document.getElementById('login-section').classList.add('d-none');
     document.getElementById('dashboard-section').classList.remove('d-none');
     
-    // จัดรูปแบบการแสดงผลชื่อ ตำแหน่ง และสังกัด (แยกบรรทัด)
+    // จัดรูปแบบการแสดงผลชื่อ ตำแหน่ง และสังกัด บริเวณมุมขวาบน
     var posText = user.position ? user.position : '';
     var offText = user.office ? user.office : '';
     var subText = '';
@@ -71,45 +76,44 @@
       var lines = [];
       if (posText !== '') lines.push(posText);
       if (offText !== '') lines.push(offText);
-      
-      subText = '<div style="font-size: 0.75rem; font-weight: normal; opacity: 0.85; margin-top: 2px; line-height: 1.3;">' + 
-                  lines.join('<br>') + 
-                '</div>';
+      subText = '<div style="font-size: 0.75rem; font-weight: normal; opacity: 0.85; margin-top: 2px; line-height: 1.3;">' + lines.join('<br>') + '</div>';
     }
 
-    // อัปเดต UI มุมขวาบน
     document.getElementById('user-display-name').innerHTML = 
-      '<div class="d-inline-block text-end align-middle me-2">' +
-        '<div class="fw-bold" style="font-size: 0.95rem;"><i class="bi bi-person-circle me-1"></i> ' + user.full_name + ' <span class="badge bg-light text-primary ms-1" style="font-size: 0.7em;">' + user.role + '</span></div>' +
-        subText +
-      '</div>';
+      '<div class="d-inline-block text-end align-middle me-2"><div class="fw-bold" style="font-size: 0.95rem;"><i class="bi bi-person-circle me-1"></i> ' + user.full_name + ' <span class="badge bg-light text-primary ms-1" style="font-size: 0.7em;">' + user.role + '</span></div>' + subText + '</div>';
 
+    // ซ่อนมุมมองบทบาททั้งหมดก่อน
     document.querySelectorAll('.role-view').forEach(function (el) { el.classList.add('d-none'); });
 
+    // ตรวจสอบและแสดงเฉพาะส่วนที่ตรงกับบทบาท
     if (user.role === 'TRAINEE') {
       document.getElementById('view-trainee').classList.remove('d-none');
       document.getElementById('trainee-group-badge').innerText = user.user_type;
-      loadTraineeTasks(user.personal_id, user.user_type);
-      loadAttendanceData(user.personal_id); // 📌 โหลดข้อมูล Check-In
+      loadTraineeTasks(user.personal_id, user.user_type); // โหลดรายการงานของผู้อบรม
+      loadAttendanceData(user.personal_id); // 📌 โหลดสถานะ Check-In ของวันนี้
     } else if (user.role === 'TRAINER') {
       document.getElementById('view-trainer').classList.remove('d-none');
       currentViewContext = 'TRAINER';
-      loadTrainerDashboard(user.personal_id);
+      loadTrainerDashboard(user.personal_id); // โหลดหน้าวิทยากร
     } else if (user.role === 'ADMIN') {
       document.getElementById('view-admin').classList.remove('d-none');
       currentViewContext = 'ADMIN';
-      loadAdminDashboard();
+      loadAdminDashboard(); // โหลดหน้าผู้ดูแลระบบ
     }
   }
 
   // ==========================================
   // 3. TRAINEE LOGIC (ผู้อบรม)
   // ==========================================
+  
+  // โหลดรายการภาระงานของผู้อบรมมาสร้างเป็นตาราง
   function loadTraineeTasks(traineeId, userType) {
     var container = document.getElementById('trainee-task-list');
     container.innerHTML = '<div class="text-center mt-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">กำลังโหลดข้อมูล...</p></div>';
 
     google.script.run.withSuccessHandler(function (tasks) {
+      
+      // อัปเดตตัวเลข Progress Bar บน Dashboard
       var totalTasks = tasks ? tasks.length : 0;
       var submittedTasks = tasks ? tasks.filter(function(t) { return t.is_submitted; }).length : 0;
       var progressPercent = totalTasks > 0 ? Math.round((submittedTasks / totalTasks) * 100) : 0;
@@ -121,20 +125,22 @@
       var pBar = document.getElementById('my-progress-bar');
       pBar.style.width = progressPercent + '%';
       pBar.innerText = progressPercent + '%';
-      pBar.className = 'progress-bar progress-bar-striped progress-bar-animated ' + 
-                       (progressPercent === 100 ? 'bg-success' : (progressPercent >= 50 ? 'bg-info' : 'bg-primary'));
+      pBar.className = 'progress-bar progress-bar-striped progress-bar-animated ' + (progressPercent === 100 ? 'bg-success' : (progressPercent >= 50 ? 'bg-info' : 'bg-primary'));
 
       if (!tasks || tasks.length === 0) {
         container.innerHTML = '<div class="alert alert-secondary text-center"><i class="bi bi-info-circle me-2"></i>ไม่มีภาระงานที่เปิดรับสำหรับกลุ่มของคุณในขณะนี้</div>';
         return;
       }
 
-      var html = '<div class="table-responsive shadow-sm border rounded"><table class="table table-hover align-middle bg-white mb-0"><thead class="bg-light"><tr class="text-muted small text-uppercase"><th>ชื่องาน</th><th style="width: 25%;">รายละเอียด</th><th>รูปแบบ</th><th>กำหนดส่ง</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody>';
+      // 📌 ปรับตารางให้ชิดขอบบน (align-top) และข้อความชิดซ้าย (text-start) 
+      var html = '<div class="table-responsive shadow-sm border rounded"><table class="table table-hover align-top bg-white mb-0"><thead class="bg-light"><tr class="text-muted small text-uppercase text-start"><th>ชื่องาน</th><th style="width: 25%;">รายละเอียด</th><th>รูปแบบ</th><th>กำหนดส่ง</th><th>สถานะ</th><th>ดำเนินการ</th></tr></thead><tbody>';
 
+      // วนลูปสร้างแถวตารางของงานแต่ละชิ้น
       tasks.forEach(function (t) {
         var statusBadge = ''; var actionBtn = '';
         var typeIcon = t.task_type === 'LINK' ? '<span class="badge bg-light text-dark border"><i class="bi bi-link-45deg me-1"></i>ลิงก์</span>' : '<span class="badge bg-light text-dark border"><i class="bi bi-file-earmark-text me-1"></i>ไฟล์</span>';
         
+        // เช็คสถานะแต่ละกรณี เพื่อกำหนดปุ่มที่ควรจะแสดง
         if (!t.is_submitted) {
           statusBadge = '<span class="badge rounded-pill bg-secondary"><i class="bi bi-circle me-1"></i>ยังไม่ส่ง</span>';
           actionBtn = '<button class="btn btn-sm btn-primary shadow-sm" onclick="openUploadModal(\'' + t.task_id + '\', \'' + t.task_name + '\', \'' + t.task_type + '\')"><i class="bi bi-send me-1"></i>ส่งงาน</button>';
@@ -155,19 +161,24 @@
             actionBtn = '<a href="' + t.file_url + '" target="_blank" class="btn btn-sm btn-outline-primary me-1 shadow-sm"><i class="bi bi-eye"></i> ดูงาน</a><button class="btn btn-sm btn-warning shadow-sm" onclick="openUploadModal(\'' + t.task_id + '\', \'' + t.task_name + '\', \'' + t.task_type + '\')"><i class="bi bi-pencil me-1"></i>ส่งใหม่</button>';
           }
         }
-        html += '<tr><td class="fw-bold text-primary">' + t.task_name + '</td><td class="text-muted small">' + (t.task_desc || '-') + '</td><td>' + typeIcon + '</td><td><small class="text-muted">' + t.deadline + '</small></td><td>' + statusBadge + '</td><td>' + actionBtn + '</td></tr>';
+        
+        // 📌 เพิ่มคลาส text-start เพื่อชิดซ้ายให้ทุกแถว และ style="white-space: pre-wrap;" เพื่อให้ข้อความเว้นบรรทัดตามแบบฟอร์ม Admin เสมอ
+        html += '<tr class="text-start"><td class="fw-bold text-primary">' + t.task_name + '</td><td class="text-muted small" style="white-space: pre-wrap;">' + (t.task_desc || '-') + '</td><td>' + typeIcon + '</td><td><small class="text-muted">' + t.deadline + '</small></td><td>' + statusBadge + '</td><td>' + actionBtn + '</td></tr>';
       });
       html += '</tbody></table></div>';
       container.innerHTML = html;
     }).getTasksForTrainee(traineeId, userType);
   }
 
+  // เปิดหน้าต่างสำหรับกดส่งงาน (เปิดโมดอลอัปโหลด/ใส่ลิงก์)
   function openUploadModal(id, name, type) {
     document.getElementById('modal-task-id').value = id;
     document.getElementById('modal-task-type').value = type;
     document.getElementById('modal-task-name').innerText = name;
     document.getElementById('upload-progress').classList.add('d-none');
     document.getElementById('fileInput').value = ""; document.getElementById('linkInput').value = "";
+    
+    // สลับช่องกรอกตามชนิดงาน (ลิงก์ หรือ ไฟล์)
     if (type === 'LINK') {
       document.getElementById('input-section-file').classList.add('d-none');
       document.getElementById('input-section-link').classList.remove('d-none');
@@ -178,6 +189,7 @@
     new bootstrap.Modal(document.getElementById('uploadModal')).show();
   }
 
+  // ฟังก์ชันควบคุมการส่งงานไปยังระบบ
   function submitFile() {
     var id = document.getElementById('modal-task-id').value, type = document.getElementById('modal-task-type').value;
     document.getElementById('upload-progress').classList.remove('d-none');
@@ -190,7 +202,7 @@
     } else {
       var f = document.getElementById('fileInput').files[0];
       if (!f) { Swal.fire('ข้อมูลไม่ครบ', 'กรุณาเลือกไฟล์', 'warning'); resetModalBtn(); return; }
-      var r = new FileReader();
+      var r = new FileReader(); // แปลงไฟล์ให้เป็น Base64 ก่อนส่งให้ Google Apps Script
       r.onload = function(e) { runSubmit({ type: 'FILE', base64: e.target.result.split(',')[1], mimeType: f.type, fileName: f.name, taskId: id, traineeId: currentUser.personal_id }, 'handleFileUpload'); };
       r.readAsDataURL(f);
     }
@@ -207,6 +219,7 @@
 
   function resetModalBtn() { document.querySelector('#uploadModal .modal-footer').classList.remove('d-none'); document.getElementById('upload-progress').classList.add('d-none'); }
 
+  // แสดงผลประเมินเมื่อถูกวิทยากรให้คะแนนแล้ว
   function openFeedbackModal(r, l, f) {
     if (l == 'null' || !l) l = '-'; if (f == 'null' || !f) f = '-';
     var badge = document.getElementById('fb-result-badge'), header = document.querySelector('#feedbackModal .modal-header');
@@ -221,6 +234,8 @@
   // ==========================================
   // 4. TRAINER LOGIC (วิทยากร)
   // ==========================================
+  
+  // โหลดรายชื่อผู้เข้าอบรมในสังกัดของวิทยากร
   function loadTrainerDashboard(trainerId) {
     var container = document.getElementById('trainer-trainee-list');
     container.innerHTML = '<div class="text-center w-100"><div class="spinner-border text-success"></div><br>กำลังโหลดข้อมูล...</div>';
@@ -279,6 +294,7 @@
     new bootstrap.Modal(document.getElementById('evalModal')).show();
   }
 
+  // ส่งผลประเมินไปยังเซิร์ฟเวอร์
   function submitEvaluation() {
     var p = { submission_id: document.getElementById('eval-sub-id').value, trainer_id: currentUser.personal_id, result: document.querySelector('input[name="evalResultOptions"]:checked').value, level: document.getElementById('eval-level').value, feedback: document.getElementById('eval-feedback').value };
     google.script.run.withSuccessHandler(function () {
@@ -290,7 +306,7 @@
   }
 
   // ==========================================
-  // 5. ADMIN LOGIC
+  // 5. ADMIN LOGIC (ผู้ดูแลระบบ)
   // ==========================================
   function loadAdminDashboard() {
     var taskContainer = document.getElementById('admin-task-list');
@@ -321,6 +337,7 @@
     }).getAdminStats();
   }
 
+  // ระบบ Pagination และ Filter ของตารางแอดมิน
   function renderTable() {
     var tbody = document.getElementById('admin-progress-table');
     var filtered = allTraineeData.filter(i => {
@@ -395,6 +412,7 @@
   function toggleStatus(id, st) { Swal.fire({title:'เปลี่ยนสถานะงาน?', icon:'question', showCancelButton:true, confirmButtonText:'ใช่, เปลี่ยนเลย'}).then((res) => { if(res.isConfirmed) google.script.run.withSuccessHandler(()=>loadAdminDashboard()).toggleTaskStatus(id, st); }); }
   function confirmDeleteTask() { Swal.fire({title:'ยืนยันการลบ?', icon:'warning', showCancelButton:true, confirmButtonColor:'#dc3545', confirmButtonText:'ใช่, ลบเลย'}).then((res) => { if(res.isConfirmed) google.script.run.withSuccessHandler(()=> { Swal.fire('ลบสำเร็จ','','success'); bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide(); loadAdminDashboard(); }).deleteTask(document.getElementById('edit-task-id').value); }); }
   
+  // ออกรายงานเป็น Excel (CSV)
   function exportToCSV() {
     if (!allTraineeData.length) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีข้อมูลสำหรับการส่งออก', 'warning');
     var csv = "Trainee ID,Name,Group,Submitted,Total,Progress (%)\n" + allTraineeData.map(r => `"${r.trainee_id}","${r.trainee_name}","${r.user_type}",${r.submitted},${r.total},${r.percent}`).join("\n");
@@ -404,6 +422,8 @@
   // ==========================================
   // 6. ATTENDANCE LOGIC (ระบบ Check-In / Check-Out)
   // ==========================================
+  
+  // ตรวจสอบข้อมูลการเข้าอบรมของวันนี้ เพื่อปรับสถานะปุ่ม Check In / Out
   function loadAttendanceData(traineeId) {
     google.script.run.withSuccessHandler(function(res) {
       if (res.status === 'SUCCESS') {
@@ -412,20 +432,23 @@
         var btnOut = document.getElementById('btn-checkout');
 
         if (!res.checkedIn) {
+          // ยังไม่ได้เข้าสู่ระบบ
           statusText.innerHTML = "กรุณา Check-in และตั้งเป้าหมายการเรียนรู้ก่อนเริ่มการอบรม";
           btnIn.disabled = false;
           btnOut.disabled = true;
         } else if (res.checkedIn && !res.checkedOut) {
+          // เข้าสู่ระบบแล้ว แต่ยังไม่ออก
           statusText.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Check-In แล้วเมื่อเวลา ' + res.checkInTime + ' น.</span> (อย่าลืม Check-Out ก่อนกลับนะครับ)';
           btnIn.disabled = true;
           btnOut.disabled = false;
           btnOut.classList.remove('btn-outline-danger');
-          btnOut.classList.add('btn-danger');
+          btnOut.classList.add('btn-danger'); // เปลี่ยนสีปุ่มให้โดดเด่นขึ้นเพื่อเตือนให้ออก
         } else if (res.checkedIn && res.checkedOut) {
+          // ทำรายการครบแล้ว
           statusText.innerHTML = '<span class="text-secondary"><i class="bi bi-check-all me-1"></i> ทำรายการครบแล้ว (In: ' + res.checkInTime + ' น. | Out: ' + res.checkOutTime + ' น.)</span>';
           btnIn.disabled = true;
           btnOut.disabled = true;
-          btnOut.classList.replace('btn-danger', 'btn-outline-danger');
+          btnOut.classList.replace('btn-danger', 'btn-outline-danger'); // ดรอปสีปุ่มลงเพราะทำเสร็จแล้ว
         }
       }
     }).getAttendanceStatus(traineeId);
@@ -441,35 +464,47 @@
     new bootstrap.Modal(document.getElementById('checkOutModal')).show();
   }
 
+  // ส่งข้อมูลเข้าอบรมไปยังเซิร์ฟเวอร์
   function submitCheckIn() {
     var goal = document.getElementById('learning-goal').value.trim();
     if (!goal) return Swal.fire('แจ้งเตือน', 'กรุณาระบุเป้าหมายการเรียนรู้ในวันนี้ครับ', 'warning');
     
+    // ล็อกปุ่มกันส่งซ้ำ
     document.getElementById('btn-submit-checkin').disabled = true;
     document.getElementById('btn-submit-checkin').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
 
     google.script.run.withSuccessHandler(function(res) {
       bootstrap.Modal.getInstance(document.getElementById('checkInModal')).hide();
       Swal.fire({ icon: res.status === 'SUCCESS' ? 'success' : 'error', title: res.status === 'SUCCESS' ? 'สำเร็จ!' : 'ผิดพลาด', text: res.message, timer: 2000, showConfirmButton: false });
+      
+      // คืนค่าปุ่มให้กลับมาปกติ
       document.getElementById('btn-submit-checkin').disabled = false;
       document.getElementById('btn-submit-checkin').innerHTML = '<i class="bi bi-save-fill me-2"></i>บันทึก Check In';
-      loadAttendanceData(currentUser.personal_id); // อัปเดต UI
+      
+      // อัปเดต UI หน้าจอ
+      loadAttendanceData(currentUser.personal_id); 
     }).recordCheckIn({ traineeId: currentUser.personal_id, goal: goal });
   }
 
+  // ส่งข้อมูลออกจากการอบรมไปยังเซิร์ฟเวอร์
   function submitCheckOut() {
     var reflection = document.getElementById('learning-reflection').value.trim();
     if (!reflection) return Swal.fire('แจ้งเตือน', 'กรุณาสะท้อนผลการเรียนรู้ในวันนี้ด้วยครับ', 'warning');
     
+    // ล็อกปุ่มกันส่งซ้ำ
     document.getElementById('btn-submit-checkout').disabled = true;
     document.getElementById('btn-submit-checkout').innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>กำลังบันทึก...';
 
     google.script.run.withSuccessHandler(function(res) {
       bootstrap.Modal.getInstance(document.getElementById('checkOutModal')).hide();
       Swal.fire({ icon: res.status === 'SUCCESS' ? 'success' : 'error', title: res.status === 'SUCCESS' ? 'สำเร็จ!' : 'ผิดพลาด', text: res.message, timer: 2000, showConfirmButton: false });
+      
+      // คืนค่าปุ่มให้กลับมาปกติ
       document.getElementById('btn-submit-checkout').disabled = false;
       document.getElementById('btn-submit-checkout').innerHTML = '<i class="bi bi-save-fill me-2"></i>บันทึก Check Out';
-      loadAttendanceData(currentUser.personal_id); // อัปเดต UI
+      
+      // อัปเดต UI หน้าจอ
+      loadAttendanceData(currentUser.personal_id); 
     }).recordCheckOut({ traineeId: currentUser.personal_id, reflection: reflection });
   }
 </script>
