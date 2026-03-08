@@ -1,36 +1,31 @@
 // =========================================================================
-// Code.gs [ฉบับอัปเกรด TMS - Single Input, Multi-Trainer & Attendance]
+// Code.gs [ฉบับอัปเกรด TMS - Single Input, Multi-Trainer & Attendance + Lookup]
 // =========================================================================
 
-// ฟังก์ชันเริ่มต้นเมื่อมีการโหลดหน้าเว็บแอป
 function doGet(e) {
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1') // ทำให้รองรับหน้าจอมือถือ
-    .setTitle('ระบบบริหารจัดการการอบรม (TMS)'); // ตั้งชื่อแท็บเบราว์เซอร์
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setTitle('ระบบบริหารจัดการการอบรม (TMS)');
 }
 
-// ฟังก์ชันสำหรับดึงไฟล์ HTML อื่นๆ เข้ามาแทรก (เช่น ดึง JavaScript.html มาใส่ใน Index.html)
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 // -------------------------------------------------------------------------
-// Helper Functions (ฟังก์ชันช่วยเหลือทั่วไป)
+// Helper Functions
 // -------------------------------------------------------------------------
-
-// ดึงไฟล์ Spreadsheet ปัจจุบันที่ผูกกับสคริปต์นี้
 function getSS() {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
-// ฟังก์ชันอเนกประสงค์สำหรับอ่านข้อมูลจากชีต และแปลงเป็น Array of Objects เพื่อให้เรียกใช้ง่ายๆ
 function getSheetData(sheetName) {
   var sheet = getSS().getSheetByName(sheetName);
   if (!sheet) return [];
   var data = sheet.getDataRange().getValues();
   var result = [];
-  if (data.length <= 1) return result; // ถ้ามีแค่หัวตารางให้คืนค่าว่าง
+  if (data.length <= 1) return result;
   
   var headers = data[0];
   for (var i = 1; i < data.length; i++) {
@@ -43,37 +38,35 @@ function getSheetData(sheetName) {
   return result;
 }
 
-// ฟังก์ชันค้นหาว่าเคยส่งงานชิ้นนี้ไปแล้วหรือยัง (หาหมายเลขแถวในชีต Submissions)
 function findRowIndex(sheet, taskId, traineeId) {
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][1]).trim() === String(taskId).trim() && String(data[i][2]).trim() === String(traineeId).trim()) {
-      return i + 1; // คืนค่าเลขแถว (บวก 1 เพราะ Array เริ่มที่ 0 แต่แถว Sheets เริ่มที่ 1)
+      return i + 1;
     }
   }
   return -1;
 }
 
 // -------------------------------------------------------------------------
-// 1. Authentication (ระบบตรวจสอบสิทธิ์เข้าสู่ระบบ)
+// 1. Authentication & Users Lookup
 // -------------------------------------------------------------------------
 function loginUser(personalId) {
   try {
-    var users = getSheetData('Users'); // ดึงข้อมูลผู้ใช้ทั้งหมด
+    var users = getSheetData('Users');
     
-    // วนลูปหาผู้ใช้ที่รหัสตรงกันและสถานะเป็น ACTIVE
     for (var i = 0; i < users.length; i++) {
       var u = users[i];
       if (String(u.personal_id).trim() === String(personalId).trim() && String(u.status).trim() === 'ACTIVE') {
         return {
           status: 'SUCCESS',
           personal_id: u.personal_id,
-          role: u.role, // บทบาท: ADMIN, TRAINER, TRAINEE
+          role: u.role, 
           full_name: u.full_name,
           position: u.Position || '', 
           office: u.Office || '',     
-          user_type: u.user_type || '', // กลุ่มเป้าหมาย เช่น ครู, ศึกษานิเทศก์
-          trainer_id: u.trainer_id || '' // รหัสวิทยากรที่ดูแล (ถ้ามี)
+          user_type: u.user_type || '', 
+          trainer_id: u.trainer_id || '' 
         };
       }
     }
@@ -83,36 +76,65 @@ function loginUser(personalId) {
   }
 }
 
-// -------------------------------------------------------------------------
-// 2. Trainee Logic (ฟังก์ชันสำหรับผู้อบรม)
-// -------------------------------------------------------------------------
+// ฟังก์ชันดึงรายชื่อสำหรับแสดงใน Popup (ดึงตั้งแต่แถวที่ 29 ของ Sheet เป็นต้นไป)
+function getUsersForLookup() {
+  var sheet = getSS().getSheetByName('Users');
+  if (!sheet) return [];
+  
+  var data = sheet.getDataRange().getValues();
+  // หากข้อมูลมีไม่ถึง 29 แถว ให้ส่งค่าว่างกลับไป
+  if (data.length <= 28) return []; 
+  
+  var headers = data[0];
+  var safeUsers = [];
+  
+  // วนลูปเริ่มที่ index 28 (ซึ่งคือ แถวที่ 29 ใน Google Sheet เนื่องจาก index 0 คือแถว 1)
+  for (var i = 28; i < data.length; i++) {
+    var row = data[i];
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = row[j];
+    }
+    
+    // ดึงเฉพาะที่สถานะเปิดใช้งาน
+    if (String(obj.status).trim() === 'ACTIVE') {
+      safeUsers.push({
+        personal_id: obj.personal_id,
+        full_name: obj.full_name,
+        Position: obj.Position || '',
+        Office: obj.Office || '',
+        user_type: obj.user_type || '',
+        role: obj.role
+      });
+    }
+  }
+  return safeUsers;
+}
 
-// ดึงรายการภาระงานทั้งหมดที่ผู้อบรมคนนั้นต้องทำ
+// -------------------------------------------------------------------------
+// 2. Trainee Logic
+// -------------------------------------------------------------------------
 function getTasksForTrainee(traineeId, userType) {
   try {
     var tasks = getSheetData('Tasks');
     var submissions = getSheetData('Submissions');
     var evaluations = getSheetData('Evaluations');
     
-    // กรองเอางานที่กำลังเปิดรับ (OPEN) และตรงกับกลุ่มเป้าหมายของผู้ใช้
     var openTasks = tasks.filter(function(t) { 
       var isTarget = (String(t.target_group).trim() === String(userType).trim() || String(t.target_group).trim() === 'ALL');
       return t.status === 'OPEN' && isTarget; 
     });
 
-    // นำงานที่กรองแล้ว มาจับคู่กับข้อมูลการส่งงานและผลประเมิน
     var taskList = openTasks.map(function(task) {
-      // หางานที่เคยส่งไปแล้ว
       var mySub = submissions.find(function(s) {
         return String(s.task_id).trim() === String(task.task_id).trim() && String(s.trainee_id).trim() === String(traineeId).trim();
       });
 
-      // หาผลประเมินของงานที่ส่ง
       var myEval = null;
       if (mySub) {
         var subEvals = evaluations.filter(function(e) { return String(e.submission_id) === String(mySub.submission_id); });
         if (subEvals.length > 0) {
-          myEval = subEvals[subEvals.length - 1]; // เอาผลประเมินล่าสุด
+          myEval = subEvals[subEvals.length - 1];
         }
       }
 
@@ -136,15 +158,12 @@ function getTasksForTrainee(traineeId, userType) {
 }
 
 // -------------------------------------------------------------------------
-// 3. Trainer Grading Logic (ฟังก์ชันสำหรับวิทยากร)
+// 3. Trainer Grading Logic
 // -------------------------------------------------------------------------
-
-// ดึงรายชื่อผู้อบรมที่อยู่ในความดูแลของวิทยากรคนนี้
 function getTrainerTrainees(trainerId) {
   var users = getSheetData('Users');
   var subms = getSheetData('Submissions');
-  
-  // กรองผู้อบรมที่มีรหัสวิทยากรตรงกับเรา
+
   var myTrainees = users.filter(function(u) { 
     if (u.role !== 'TRAINEE' || !u.trainer_id) return false;
     var trainerArray = String(u.trainer_id).split(',').map(function(id) { return id.trim(); });
@@ -162,12 +181,11 @@ function getTrainerTrainees(trainerId) {
   });
 }
 
-// ดึงงานของผู้อบรม เพื่อให้วิทยากรตรวจ
 function getTraineeWorksForGrading(traineeId, userType) {
   var tasks = getSheetData('Tasks');
   var submissions = getSheetData('Submissions');
   var evaluations = getSheetData('Evaluations');
-  
+
   var targetTasks = tasks.filter(function(t) { 
     var isTarget = (String(t.target_group).trim() === String(userType).trim() || String(t.target_group).trim() === 'ALL');
     return t.status === 'OPEN' && isTarget; 
@@ -201,9 +219,8 @@ function getTraineeWorksForGrading(traineeId, userType) {
   });
 }
 
-// บันทึกผลการประเมินลงในชีต Evaluations
 function saveEvaluation(data) {
-  var lock = LockService.getScriptLock(); // ล็อกการทำงานกันชนกัน
+  var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
     var sheet = getSS().getSheetByName('Evaluations');
@@ -226,10 +243,8 @@ function saveEvaluation(data) {
 }
 
 // -------------------------------------------------------------------------
-// 4. Admin Logic (ฟังก์ชันสำหรับผู้ดูแลระบบ)
+// 4. Admin Logic
 // -------------------------------------------------------------------------
-
-// ดึงภาระงานทั้งหมดมาแสดงให้ Admin จัดการ
 function getAllTasksAdmin() {
   try {
     var sheet = getSS().getSheetByName('Tasks');
@@ -259,7 +274,6 @@ function getAllTasksAdmin() {
   } catch(e) { return []; }
 }
 
-// คำนวณสถิติภาพรวมสำหรับหน้า Dashboard ของ Admin
 function getAdminStats() {
   try {
     var users = getSheetData('Users');
@@ -298,7 +312,7 @@ function getAdminStats() {
         percent: Math.round(percent)
       };
     });
-    
+
     traineeProgress.sort(function(a, b) { return a.percent - b.percent; });
 
     return {
@@ -309,7 +323,6 @@ function getAdminStats() {
   } catch (e) { return null; }
 }
 
-// สร้างภาระงานใหม่
 function createNewTask(form) {
   var lock = LockService.getScriptLock();
   try {
@@ -326,7 +339,7 @@ function createNewTask(form) {
 
     var folderId = "";
     if (form.taskType !== 'LINK') {
-      var parentFolderId = "1HHQgpS3CXvZLbP0e1QS9ORG2al89GbSd"; // ⚠️ ควรเปลี่ยนเป็น ID ของ Folder หลักใน Drive ของคุณ
+      var parentFolderId = "1HHQgpS3CXvZLbP0e1QS9ORG2al89GbSd"; 
       var parentFolder;
       try { parentFolder = DriveApp.getFolderById(parentFolderId); } 
       catch (e) { parentFolder = DriveApp.getRootFolder(); }
@@ -341,6 +354,7 @@ function createNewTask(form) {
       newId, form.taskName, form.description, form.taskType, form.targetGroup || 'ALL', form.round, form.fiscalYear,
       "'" + form.openDate, "'" + form.closeDate, folderId, 'OPEN'
     ]);
+
     return { status: 'SUCCESS', message: 'สร้างงานใหม่เรียบร้อย! (ID: ' + newId + ')' };
   } catch (e) {
     return { status: 'FAILED', message: e.toString() };
@@ -349,7 +363,6 @@ function createNewTask(form) {
   }
 }
 
-// เปิด/ปิด การรับงาน
 function toggleTaskStatus(taskId, currentStatus) {
   var sheet = getSS().getSheetByName('Tasks');
   var data = sheet.getDataRange().getValues();
@@ -363,7 +376,6 @@ function toggleTaskStatus(taskId, currentStatus) {
   return { status: 'FAILED', message: 'ไม่พบงาน' };
 }
 
-// อัปเดตข้อมูลงานเดิม
 function updateTask(data) {
   try {
     var sheet = getSS().getSheetByName('Tasks');
@@ -393,7 +405,6 @@ function updateTask(data) {
   }
 }
 
-// อัปโหลดไฟล์งาน
 function handleFileUpload(fileData) {
   var lock = LockService.getScriptLock();
   try {
@@ -404,6 +415,7 @@ function handleFileUpload(fileData) {
     var tasks = getSheetData('Tasks');
     var targetTask = tasks.find(function(t) { return String(t.task_id).trim() === String(fileData.taskId).trim(); });
     var rawFolderId = (targetTask && targetTask.folder_id) ? String(targetTask.folder_id).trim() : "";
+    
     var folder;
     try {
       if (rawFolderId && rawFolderId.length > 10) folder = DriveApp.getFolderById(rawFolderId);
@@ -412,13 +424,13 @@ function handleFileUpload(fileData) {
 
     var newFileName = fileData.traineeId + "_" + fileData.taskId + "_" + fileData.fileName;
     var file = folder.createFile(blob).setName(newFileName);
-    
+
     var sheet = getSS().getSheetByName('Submissions');
     var timestamp = new Date();
     var existingRow = findRowIndex(sheet, fileData.taskId, fileData.traineeId);
-    var submitInfo = JSON.stringify({ type: 'FILE', originalName: fileData.fileName, mode: (existingRow > 0 ? 'RESUBMIT' : 'FIRST') });
     
-    // ถ้าเคยส่งแล้วให้อัปเดตข้อมูลทับบรรทัดเดิม ถ้ายังให้เพิ่มบรรทัดใหม่
+    var submitInfo = JSON.stringify({ type: 'FILE', originalName: fileData.fileName, mode: (existingRow > 0 ? 'RESUBMIT' : 'FIRST') });
+
     if (existingRow > 0) {
       sheet.getRange(existingRow, 4).setValue(file.getUrl());
       sheet.getRange(existingRow, 5).setValue(file.getId());
@@ -428,6 +440,7 @@ function handleFileUpload(fileData) {
       sheet.appendRow(['SUB-' + Utilities.getUuid().slice(0,8), fileData.taskId, fileData.traineeId, file.getUrl(), file.getId(), submitInfo, timestamp, 'ON_TIME']);
     }
     return { status: 'SUCCESS', message: 'ส่งไฟล์เรียบร้อยแล้ว' };
+
   } catch (e) {
     return { status: 'FAILED', message: 'Upload Error: ' + e.toString() };
   } finally {
@@ -435,16 +448,16 @@ function handleFileUpload(fileData) {
   }
 }
 
-// ส่งงานเป็นลิงก์
 function handleLinkSubmission(data) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
     var sheet = getSS().getSheetByName('Submissions');
     var timestamp = new Date();
+    
     var existingRow = findRowIndex(sheet, data.taskId, data.traineeId);
     var submitInfo = JSON.stringify({ type: 'LINK', mode: (existingRow > 0 ? 'RESUBMIT' : 'FIRST') });
-    
+
     if (existingRow > 0) {
       sheet.getRange(existingRow, 4).setValue(data.url);
       sheet.getRange(existingRow, 5).setValue('LINK_SUBMISSION');
@@ -454,6 +467,7 @@ function handleLinkSubmission(data) {
       sheet.appendRow(['SUB-' + Utilities.getUuid().slice(0,8), data.taskId, data.traineeId, data.url, 'LINK_SUBMISSION', submitInfo, timestamp, 'ON_TIME']);
     }
     return { status: 'SUCCESS', message: 'บันทึกลิงก์เรียบร้อยแล้ว' };
+
   } catch (e) {
     return { status: 'FAILED', message: 'Link Error: ' + e.toString() };
   } finally {
@@ -461,7 +475,6 @@ function handleLinkSubmission(data) {
   }
 }
 
-// ลบงาน (และลบโฟลเดอร์ใน Drive)
 function deleteTask(taskId) {
   try {
     var sheet = getSS().getSheetByName('Tasks');
@@ -485,10 +498,8 @@ function deleteTask(taskId) {
 }
 
 // -------------------------------------------------------------------------
-// 5. Attendance Logic (ระบบลงเวลา Check-In / Check-Out)
+// 5. Attendance Logic
 // -------------------------------------------------------------------------
-
-// ฟังก์ชันตรวจสอบสถานะการลงเวลาในวันนี้ของผู้ใช้
 function getAttendanceStatus(traineeId) {
   try {
     var sheet = getSS().getSheetByName('Attendance');
@@ -497,13 +508,11 @@ function getAttendanceStatus(traineeId) {
     var data = sheet.getDataRange().getValues();
     var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
     
-    // ค้นหาจากล่างขึ้นบน (ข้อมูลล่าสุดของวันนี้) เพื่อความรวดเร็ว
     for (var i = data.length - 1; i >= 1; i--) {
       var rowDate = data[i][2];
       if (!rowDate) continue;
       
       var rowDateStr = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), "yyyy-MM-dd");
-      // ถ้าพบว่ามีรหัสนี้ และเป็นวันที่ตรงกับวันนี้
       if (String(data[i][1]).trim() === String(traineeId).trim() && rowDateStr === todayStr) {
         return {
           status: 'SUCCESS',
@@ -514,14 +523,12 @@ function getAttendanceStatus(traineeId) {
         };
       }
     }
-    // ถ้าไม่เจอแสดงว่าวันนี้ยังไม่เคย Check-in
     return { status: 'SUCCESS', checkedIn: false, checkedOut: false };
   } catch (e) {
     return { status: 'FAILED', message: e.toString() };
   }
 }
 
-// บันทึกเวลาเข้าอบรม (Check-In)
 function recordCheckIn(data) {
   var lock = LockService.getScriptLock();
   try {
@@ -530,15 +537,14 @@ function recordCheckIn(data) {
     if (!sheet) return { status: 'FAILED', message: 'ไม่พบแผ่นงาน Attendance' };
     
     var timestamp = new Date();
-    // เพิ่มแถวใหม่สำหรับวันนั้นๆ
     sheet.appendRow([
       'ATT-' + Utilities.getUuid().slice(0,8),
       data.traineeId,
-      timestamp, // date
-      timestamp, // check_in_time
-      data.goal, // learning_goal
-      '',        // check_out_time (ยังว่างไว้)
-      ''         // reflection (ยังว่างไว้)
+      timestamp, 
+      timestamp, 
+      data.goal, 
+      '',        
+      ''         
     ]);
     return { status: 'SUCCESS', message: 'บันทึกเวลาเข้าอบรมเรียบร้อยแล้ว' };
   } catch (e) {
@@ -548,27 +554,25 @@ function recordCheckIn(data) {
   }
 }
 
-// บันทึกเวลาออกการอบรม (Check-Out)
 function recordCheckOut(data) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
     var sheet = getSS().getSheetByName('Attendance');
     if (!sheet) return { status: 'FAILED', message: 'ไม่พบแผ่นงาน Attendance' };
-    
+
     var rows = sheet.getDataRange().getValues();
     var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
-    
-    // หากลับไปที่แถว Check-in ของวันนี้เพื่ออัปเดตข้อมูล Check-Out
+
     for (var i = rows.length - 1; i >= 1; i--) {
       var rowDate = rows[i][2];
       if (!rowDate) continue;
       
       var rowDateStr = Utilities.formatDate(new Date(rowDate), Session.getScriptTimeZone(), "yyyy-MM-dd");
+      
       if (String(rows[i][1]).trim() === String(data.traineeId).trim() && rowDateStr === todayStr) {
-        // อัปเดตข้อมูล Check-Out ในคอลัมน์ที่ 6 และ 7 ของแถวเดิม
-        sheet.getRange(i + 1, 6).setValue(new Date()); // check_out_time
-        sheet.getRange(i + 1, 7).setValue(data.reflection); // reflection
+        sheet.getRange(i + 1, 6).setValue(new Date());
+        sheet.getRange(i + 1, 7).setValue(data.reflection);
         return { status: 'SUCCESS', message: 'บันทึกเวลาออกและผลการสะท้อนเรียบร้อยแล้ว' };
       }
     }
